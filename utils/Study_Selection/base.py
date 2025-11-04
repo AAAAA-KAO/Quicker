@@ -5,12 +5,15 @@ from pydantic import BaseModel, Field
 from enum import Enum
 import json
 from langchain_core.output_parsers import PydanticOutputParser
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 DATABASE_PATH = 'data'
-RAMDOM_SEED = 42
+RANDOM_SEED = int(os.getenv('RANDOM_SEED', 42))
 
-random.seed(RAMDOM_SEED)
+random.seed(RANDOM_SEED)
 
 
 class Verdict(Enum):
@@ -21,7 +24,7 @@ class Verdict(Enum):
 class Generated_Verdict(BaseModel):
     verdict: Verdict = Field(
         description="Your verdict (Included/Excluded)",
-    ) 
+    )
     reason: str = Field(
         description="The reason for your verdict",
     )
@@ -58,13 +61,13 @@ def sample_papers(dataset_name: str, total_num: int = 100):
 
         # Randomly sample excluded papers
         excluded_paper_sample = excluded_paper.sample(
-            n=excluded_num, random_state=RAMDOM_SEED
+            n=excluded_num, random_state=RANDOM_SEED
         )
 
         papers_df = pd.concat([include_paper, excluded_paper_sample])
 
         # Shuffle the paper list
-        papers_df = papers_df.sample(frac=1, random_state=RAMDOM_SEED).reset_index(
+        papers_df = papers_df.sample(frac=1, random_state=RANDOM_SEED).reset_index(
             drop=True
         )
         # Change the suffix

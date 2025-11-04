@@ -8,11 +8,16 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Dict
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
 
 
 from utils.Evidence_Assessment.outcome import Outcome
 from utils.Evidence_Assessment.paper import Paper
 from utils.Evidence_Assessment.evidence import Evidence
+
+load_dotenv()
+
+RANDOM_SEED = int(os.getenv('RANDOM_SEED', 42))
 
 
 class QuickerStage(int, Enum):  # 这个int表示枚举类的值是int类型
@@ -99,7 +104,7 @@ class QuickerData:
                 ],
                 'output': [
                     'record_included_studies',
-                    'full_text_included_studies',  # List[Paper] 
+                    'full_text_included_studies',  # List[Paper]
                     'total_outcome_list',  # List[Outcome]
                     'valid_comparison_list',  # List[str]
                 ],
@@ -205,9 +210,7 @@ class QuickerData:
 
                         if self.stage == stage_name:
                             self.stage_state = StageState.COMPLETED
-                        elif (
-                            self.stage - 1 == stage_name
-                        ):  
+                        elif self.stage - 1 == stage_name:
                             self.stage_state = StageState.NOT_STARTED
                         else:
                             raise ValueError(
@@ -226,13 +229,9 @@ class QuickerData:
                         # update
                         if self.is_stage(stage_name):
                             setattr(self, 'stage', stage_name)
-                            self.stage_state = (
-                                StageState.NOT_STARTED
-                            ) 
+                            self.stage_state = StageState.NOT_STARTED
                         else:
-                            setattr(
-                                self, 'stage', QuickerStage(stage_name - 1)
-                            )  
+                            setattr(self, 'stage', QuickerStage(stage_name - 1))
                             self.stage_state = StageState.COMPLETED
 
                         stage_flag = stage_name
@@ -366,12 +365,10 @@ class QuickerData:
         for i in range(stage.value + 1):
             for attr in self.data[QuickerStage(i)]['input']:
                 # firstly, add input data
-                if attr in default_value.keys():  
+                if attr in default_value.keys():
                     self.update_data({attr: default_value[attr]})
                 else:
-                    if (
-                        getattr(self, attr) is None
-                    ): 
+                    if getattr(self, attr) is None:
                         if attr in ["search_config", "outcome", "annotation"]:
                             self.update_data({attr: {}})
                         elif attr in ['study', 'outcome_list', 'paper_list']:
@@ -385,9 +382,7 @@ class QuickerData:
                 if attr in default_value.keys():
                     self.update_data({attr: default_value[attr]})
                 else:
-                    if (
-                        getattr(self, attr) is None
-                    ): 
+                    if getattr(self, attr) is None:
                         if attr == 'search_results':
                             self.update_data({attr: {}})
                         elif attr in [
@@ -440,7 +435,9 @@ class Quicker:
 
         self.model_config: dict = self.config['model']
 
-        self.comparator_postfix_map = None  #! use in test for mapping comparator and postfix manually
+        self.comparator_postfix_map = (
+            None  #! use in test for mapping comparator and postfix manually
+        )
 
     @property
     def paper_library_path(self):
@@ -536,7 +533,7 @@ class Quicker:
                 for comparator, comparator_postfix in comparator_dict.items()
             }
         else:
-            return self.comparator_postfix_map  
+            return self.comparator_postfix_map
 
     def set_inclusion_exclusion_criteria(
         self, inclusion_criteria: str, exclusion_criteria: str
@@ -569,11 +566,7 @@ class Quicker:
                     'multi-query'
                 )
             else:
-                study = (
-                    self.quicker_data.study
-                    if self.quicker_data.study
-                    else None  
-                )
+                study = self.quicker_data.study if self.quicker_data.study else None
                 clinical_question_with_pico = get_clinical_question_with_pico(
                     clinical_question=self.quicker_data.clinical_question,
                     population=self.quicker_data.population,
@@ -650,7 +643,7 @@ class Quicker:
                     else None
                 )
                 if not doi.startswith('10.'):
-                    doi = None 
+                    doi = None
                 paper_uid = Paper.get_paper_uid(
                     doi=doi,
                     pmid=pmid,
@@ -705,9 +698,7 @@ class Quicker:
         paperinfo_json_files = [
             f
             for f in os.listdir(paperinfo_json_folder)
-            if f.startswith(
-                f"paperinfo_PICO{self.quicker_data.pico_idx}"
-            )  
+            if f.startswith(f"paperinfo_PICO{self.quicker_data.pico_idx}")
             and f.endswith('.json')
         ]
         # load paperinfo JSON
@@ -731,9 +722,7 @@ class Quicker:
         for assessed_paper in assessed_paper_list:
             paper_uid = assessed_paper.get('paper_uid')
             if paper_uid and paper_uid in record_dict.keys():
-                record_dict[paper_uid].update(
-                    assessed_paper
-                ) 
+                record_dict[paper_uid].update(assessed_paper)
 
         record_included_paper_list = list(record_dict.values())
 
@@ -848,7 +837,7 @@ class Quicker:
                         valid_comparison_list=original_valid_comparison_list
                         + [comparator]
                     )
-                ) 
+                )
 
                 saved_papers_dict[comparator] = tmp_paper_list
                 # save the updated paper
@@ -869,9 +858,7 @@ class Quicker:
         # save outcome_list
         total_outcome_list = []
         for comparator in getattr(self.quicker_data, 'valid_comparison_list'):
-            candidate_paper_list = saved_papers_dict.get(
-                comparator
-            )  
+            candidate_paper_list = saved_papers_dict.get(comparator)
             outcome_list = []
             for outcome in self.quicker_data.outcome[comparator]:
                 paper_with_target_outcome = [
@@ -908,7 +895,7 @@ class Quicker:
                                 'GRADE': {"Study design": study_design.name}
                             },
                         )
-                        for study_design, paper_list in study_design_group.items()  
+                        for study_design, paper_list in study_design_group.items()
                     ]
                 )
             total_outcome_list.extend(outcome_list)
@@ -969,7 +956,7 @@ class Quicker:
         # search_results_path = getattr(self.quicker_data, 'search_results_path')
         # search_results = pd.read_csv(search_results_path)
         search_results = getattr(self.quicker_data, 'search_results')
-        search_results = pd.DataFrame(search_results) 
+        search_results = pd.DataFrame(search_results)
         logging.info('search result length: ' + str(len(search_results)))
         search_results = search_results.dropna(
             subset=['Paper_Index', 'Title', 'Abstract']
@@ -977,11 +964,11 @@ class Quicker:
         logging.info('search result length after dropna: ' + str(len(search_results)))
         if need_sample:
             included_paper = search_results[
-            search_results['Full-text_Assessment'] == 'Included'
+                search_results['Full-text_Assessment'] == 'Included'
             ]
             # Extract all papers with determination as Excluded
             excluded_paper = search_results[
-            search_results['Full-text_Assessment'] == 'Excluded'
+                search_results['Full-text_Assessment'] == 'Excluded'
             ]
 
             # Randomly sample excluded papers and combine them with included papers, with a total count of total_num
@@ -992,20 +979,20 @@ class Quicker:
                 excluded_num = len(excluded_paper)
 
             logging.info(
-            f"Sample {need_sample} papers from included paper and {excluded_num} papers from excluded paper"
+                f"Sample {need_sample} papers from included paper and {excluded_num} papers from excluded paper"
             )
 
             # Randomly sample excluded papers
             excluded_paper_sample = excluded_paper.sample(
-            n=excluded_num, random_state=42
+                n=excluded_num, random_state=RANDOM_SEED
             )
 
             papers_df = pd.concat([included_paper, excluded_paper_sample])
 
             # Shuffle the paper list
-            search_results = papers_df.sample(frac=1, random_state=42).reset_index(
-            drop=True
-            )
+            search_results = papers_df.sample(
+                frac=1, random_state=RANDOM_SEED
+            ).reset_index(drop=True)
         if save_path:
             file_name = (
                 'PICO'
@@ -1013,9 +1000,7 @@ class Quicker:
                 + f'({len(search_results)} samples).json'
             )
             save_path = os.path.join(save_path, file_name)
-            search_results.to_json(
-                save_path, orient='records', indent=4
-            ) 
+            search_results.to_json(save_path, orient='records', indent=4)
             logging.info(f"Search results are saved to {save_path}")
         return search_results
 
@@ -1064,9 +1049,9 @@ class Quicker:
         for paper_index in included_num['Paper_Index']:
 
             original_paper_dict = (
-            all_verdict_df[all_verdict_df['Paper_Index'] == paper_index]
-            .iloc[0]
-            .to_dict()
+                all_verdict_df[all_verdict_df['Paper_Index'] == paper_index]
+                .iloc[0]
+                .to_dict()
             )
 
             # Replace all empty values with None
@@ -1079,7 +1064,7 @@ class Quicker:
                 str(original_paper_dict.get('Paper_Index'))
                 if original_paper_dict.get('Paper_Index')
                 else None
-            )  
+            )
 
             paper_uid = Paper.get_paper_uid(
                 doi=original_paper_dict.get('Digital Object Identifier'),
@@ -1093,7 +1078,7 @@ class Quicker:
             else:
                 year = original_paper_dict.get('Published')
 
-            paper_dict = dict(  
+            paper_dict = dict(
                 title=original_paper_dict.get('Title'),
                 paper_uid=paper_uid,
                 pmid=pmid,

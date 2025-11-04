@@ -20,7 +20,7 @@ Each phase builds upon the output of the previous, so we recommend running the w
 Clone the repository and install the dependencies:
 ```bash
 git clone git@github.com:somewordstoolate/Quicker.git
-pip install -r requirement.txt
+pip install -r requirement.txt # python version: 3.11.10
 ```
 
 ## 🔧 External Dependencies
@@ -30,13 +30,17 @@ This project requires several third-party components. You can deploy or configur
 3. [vLLM](https://github.com/vllm-project/vllm) (requires GPU):  a fast and easy-to-use library for LLM inference and serving. We use it to deploy local LLMs and expose them via API.
 4. [Qdrant](https://github.com/qdrant/qdrant): a vector similarity search engine and vector database.
 
-## ⚙️ Configuration
-Before running Quicker, create a config.json file (see example in the config folder).  The following parameters can be set in different values:
+## ⚙️ Hyperparameters and Configuration
+Before running Quicker, create a config.json file (see example in the config folder). The following parameters can be set in different values:
+* `temperature` (float): Default is 1.0 (this is the value used in all our experiments).
+* We use the default model parameter settings as specified on each model’s official site, or as recommended by the model providers. If you wish to customize these values, you can do so by modifying the `get_model` method in the `Quicker` class.
 * `record_screening_method`(str): `"basic"` or `"cot"` — the method used for record screening.
 * `exp_num` (int): Number of repeated screenings.
 * `threshold` (int): Threshold T for full-text assessment inclusion (only records included at least T runs will be finally included). Must satisfy `threshold <= exp_num`.
 
-Other parameters are under development and not covered in the current manuscript.
+The default random seed is 42. If needed, you can rename the `env.example` file to `.env` and set your preferred random seed.
+
+For easier understanding of the architecture, all prompts for each phase of Quicker are saved in their respective utils/`workflow_phase`/prompt.py files.
 
 ## 📂 Datasets
 

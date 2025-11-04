@@ -3,27 +3,32 @@
         "question_decomposition_model": {
             "model_name": "YOUR_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
         },
         "literature_search_model": {
             "model_name": "YOUR_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
         },
         "study_selection_model": {
             "model_name": "YOUR_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
         },
         "evidence_assessment_model": {
             "model_name": "YOUR_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
         },
         "recommendation_formation_model": {
             "model_name": "YOUR_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
         },
         "embeddings": {
             "model_name": "YOUR_MODEL_NAME",
