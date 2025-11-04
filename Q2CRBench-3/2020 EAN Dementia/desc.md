@@ -27,6 +27,10 @@ The `Search_Strategies` folder includes the exact queries used to perform litera
 
 The `Included_Studies_with_PMID.json` file lists all studies that were included in the final guideline. PMID identifiers are provided to facilitate retrieval. The `Date` column in this file reflects a search window one year earlier in our experiment than the actual search date in the original guideline, because Ovid MEDLINE does not support exact DD/MM search filtering. This file was used as the label set for the literature search and study selection experiments in Quicker.
 
+There are two approaches you can obtain complete search results:
+1. Perform our provided search strategies in Ovid MEDLINE. An operating procedure demonstration guide can be found [here](../search_demo.pdf).
+2. Sending your request to ljs@zju.edu.cn. Please include a brief description of your research purpose, institutional affiliation, and intended use of the data. Access will be granted for academic and non-commercial research only, subject to approval and a data use agreement.
+
 In the `Evidence_Profiles` directory:
 
 * The metadata folder contains the raw evidence profiles in the most original form possible.
