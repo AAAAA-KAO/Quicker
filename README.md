@@ -46,7 +46,9 @@ For easier understanding of the architecture, all prompts for each phase of Quic
 
 You may use the `Q2CRBench-3` dataset or your own clinical question and study corpus to evaluate Quicker. Detailed descriptions of the benchmark datasets can be found in the desc.md file within each corresponding dataset folder.
 
-![Dataset Statistics](fig/datasets.png)
+<div align="center">
+<img src="fig/datasets.png" alt="Dataset Statistics" width="400">
+</div>
 
 Due to copyright restrictions, we are unable to share partial publications directly. However, you can reproduce the test records by following the provided search strategies and use public tools such as [Crossref](https://www.crossref.org/) and [OpenAlex](https://openalex.org/) to retrieve the necessary bibliographic and access information.
 
