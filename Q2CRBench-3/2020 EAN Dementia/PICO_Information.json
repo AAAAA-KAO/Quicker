@@ -8,7 +8,9 @@
         "C": [
             "Treatment with either carbamazepine, phenytoin, valproate"
         ],
-        "O": "1. Serious adverse events\n2. Global cognitive function\n3. ADL\n4. Number of seizures",
+        "O": {
+            "Treatment with either carbamazepine, phenytoin, valproate": "1. Serious adverse events\n2. Global cognitive function\n3. ADL\n4. Number of seizures"
+        },
         "S": "For the present research question and PICO question, we will include RCTs only since it was the opinion of the Task Force, that these types of studies were the only relevant to address these questions."
     },
     {
@@ -20,7 +22,9 @@
         "C": [
             "No treatment with NOACs or warfarin"
         ],
-        "O": "1. Major hemoragic events \n2. Global cognitive function\n3. Mortality\n4. Ischemic vascular event",
+        "O": {
+            "No treatment with NOACs or warfarin": "1. Major hemoragic events \n2. Global cognitive function\n3. Mortality\n4. Ischemic vascular event"
+        },
         "S": "Both observational and RCTs will be included in the analysis."
     },
     {
@@ -32,7 +36,9 @@
         "C": [
             "Usual care"
         ],
-        "O": "1. Institutionalisation\n2. Global cognitive function\n3. Mortality\n4. ADL",
+        "O": {
+            "Usual care": "1. Institutionalisation\n2. Global cognitive function\n3. Mortality\n4. ADL"
+        },
         "S": "Both observational and RCTs will be included in the analysis."
     },
     {
@@ -44,7 +50,9 @@
         "C": [
             "Usual care"
         ],
-        "O": "1. Institutionalisation\n2. Caregiver burden\n3. Acute hospital admissions\n4. ADL ",
+        "O": {
+            "Usual care": "1. Institutionalisation\n2. Caregiver burden\n3. Acute hospital admissions\n4. ADL "
+        },
         "S": "For the present research question and PICO question, we will include RCTs only since it was the opinion of the Task Force, that these types of studies were the only relevant to address these questions."
     },
     {
@@ -56,7 +64,9 @@
         "C": [
             " No pharmacological treatment "
         ],
-        "O": "1. Mortality \n2. Agitation/Aggression \n3. Global cognitive function.\n4. Serious adverse events \n5. Caregiver burden",
+        "O": {
+            " No pharmacological treatment ": "1. Mortality \n2. Agitation/Aggression \n3. Global cognitive function.\n4. Serious adverse events \n5. Caregiver burden"
+        },
         "S": "We include only RCTs, both on effects of treatment as well as on discontinuation of treatment, since these types of studies are prevalent, and will provide rich data to address this issue."
     },
     {
@@ -68,7 +78,9 @@
         "C": [
             "Haloperidol"
         ],
-        "O": "1. Mortality \n2. Agitation/Aggression \n3. Global cognitive function.\n4. Serious adverse events \n5. Caregiver burden",
+        "O": {
+            "Haloperidol": "1. Mortality \n2. Agitation/Aggression \n3. Global cognitive function.\n4. Serious adverse events \n5. Caregiver burden"
+        },
         "S": "We include only RCTs, both on effects of treatment as well as on discontinuation of treatment, since these types of studies are prevalent, and will provide rich data to address this issue."
     },
     {
@@ -80,7 +92,9 @@
         "C": [
             "Continuation of treatment"
         ],
-        "O": "1. Mortality \n2. Neuropsychiatric symptoms\n3. Global cognitive function.\n4. Serious adverse events ",
+        "O": {
+            "Continuation of treatment": "1. Mortality \n2. Neuropsychiatric symptoms\n3. Global cognitive function.\n4. Serious adverse events "
+        },
         "S": "We include only RCTs, both on effects of treatment as well as on discontinuation of treatment, since these types of studies are prevalent, and will provide rich data to address this issue."
     },
     {
@@ -92,7 +106,9 @@
         "C": [
             "Continuation of opioid treatment"
         ],
-        "O": "1. Psychotropic treatment\n2. Global cognitive function\n3. Mortality\n4. Pain\n5.  Neuropsychiatric symptoms",
+        "O": {
+            "Continuation of opioid treatment": "1. Psychotropic treatment\n2. Global cognitive function\n3. Mortality\n4. Pain\n5.  Neuropsychiatric symptoms"
+        },
         "S": "For the present research questions, both observational studies and RCTs will be included."
     },
     {
@@ -104,7 +120,9 @@
         "C": [
             " No treatment with analgesics "
         ],
-        "O": "1. Psychotropic treatment\n2. Global cognitive function\n3. Agitation/aggression\n4.  Neuropsychiatric symptoms ",
+        "O": {
+            " No treatment with analgesics ": "1. Psychotropic treatment\n2. Global cognitive function\n3. Agitation/aggression\n4.  Neuropsychiatric symptoms "
+        },
         "S": "For the present research questions, both observational studies and RCTs will be included."
     }
 ]
