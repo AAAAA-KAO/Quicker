@@ -48,6 +48,23 @@ You may use the `Q2CRBench-3` dataset or your own clinical question and study co
 
 Due to copyright restrictions, we are unable to share partial publications directly. However, you can reproduce the test records by following the provided search strategies and use public tools such as [Crossref](https://www.crossref.org/) and [OpenAlex](https://openalex.org/) to retrieve the necessary bibliographic and access information.
 
+To facilitate reproducibility, we provide a `literature_hashes.jsonl` file in the `Q2CRBench-3` folder. This file contains SHA256 hashes computed from vector database files produced by GROBID text extraction and Qdrant vectorization (see [example file](data/2021ACR%20RA/Paper_Library/PICOef0e4f95/566c1573/566c1573_vector_database/collection/paper_566c1573_vector/storage.sqlite)). You can use the following code to generate the hash of your own `storage.sqlite` file and compare it with the provided hash to ensure alignment of results.
+
+```python
+import os, hashlib, json
+
+def file_sha256(path):
+    sha = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+path = <your_file_path>
+
+hash_value = file_sha256(path)
+```
+
 ## TODO
 * Dataset statistical Figures
 
