@@ -1,0 +1,5 @@
+(
+("rheumatoid arthritis"[Mesh] OR "RA"[tiab] OR "disease-modifying antirheumatic drugs"[tiab] OR "DMARD"[tiab] OR "not at target"[tiab]) 
+AND 
+("intra-articular corticosteroids"[tiab] OR "IA corticosteroids"[tiab] OR "add DMARD"[tiab] OR "switch DMARD"[tiab] OR "DMARD adjustment"[tiab])
+)

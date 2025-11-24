@@ -1,0 +1,10 @@
+(
+("Rheumatoid Arthritis"[Mesh] OR "RA"[tiab] OR "Rheumatoid Arthritis"[tiab]) AND 
+("Disease-Modifying Antirheumatic Drugs"[Mesh] OR "DMARDs"[tiab] OR "Disease-Modifying Antirheumatic Drugs"[tiab] OR "Treatment Not at Target"[tiab] OR "Second DMARD"[tiab]) 
+) AND 
+(
+"Short-term Glucocorticoids"[tiab] OR "Short-term Corticosteroids"[tiab] OR "Short-term Steroids"[tiab] OR ("Glucocorticoids"[Mesh] AND ("3 months"[tiab] OR "Short-term"[tiab])) 
+) AND 
+(
+"Long-term Glucocorticoids"[tiab] OR "Long-term Corticosteroids"[tiab] OR "Long-term Steroids"[tiab] OR ("Glucocorticoids"[Mesh] AND ("more than 3 months"[tiab] OR "Long-term"[tiab]))
+)

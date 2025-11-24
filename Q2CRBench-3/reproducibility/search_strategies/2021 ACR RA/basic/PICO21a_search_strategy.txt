@@ -1,0 +1,9 @@
+(
+("rheumatoid arthritis"[tiab] OR "RA"[tiab]) 
+AND ("non-biologic DMARD"[tiab] OR "disease-modifying antirheumatic drug"[tiab] OR "methotrexate"[tiab] OR "leflunomide"[tiab] OR "sulfasalazine"[tiab] OR "hydroxychloroquine"[tiab]) 
+AND ("not at target"[tiab] OR "disease activity"[tiab])
+) AND (
+("switch DMARD"[tiab] OR "drug substitution"[tiab] OR "change therapy"[tiab] OR "treatment modification"[tiab] OR "therapy alteration"[tiab])
+) AND (
+("add DMARD"[tiab] OR "combination therapy"[tiab] OR "dual therapy"[tiab] OR "augment treatment"[tiab])
+)

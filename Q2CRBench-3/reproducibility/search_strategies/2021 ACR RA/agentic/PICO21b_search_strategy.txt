@@ -1,0 +1,3 @@
+("rheumatoid arthritis"[Title/Abstract] OR "RA"[Title/Abstract] OR "Rheumatoid Arthritis"[Mesh] OR "disease-modifying antirheumatic drugs"[Title/Abstract] OR "DMARDs"[Title/Abstract] OR "not at target"[Title/Abstract] OR "inadequate response"[Title/Abstract]) 
+AND 
+("glucocorticoids"[Title/Abstract] OR "corticosteroids"[Title/Abstract] OR "Glucocorticoids"[MeSH] OR "short-term GCs"[Title/Abstract] OR "long-term GCs"[Title/Abstract] OR "prednisone"[Title/Abstract] OR "Prednisone"[MeSH] OR "prednisolone"[Title/Abstract] OR "Prednisolone"[MeSH] OR "hydrocortisone"[Title/Abstract] OR "Hydrocortisone"[MeSH] OR "methylprednisolone"[Title/Abstract] OR "Methylprednisolone"[MeSH])

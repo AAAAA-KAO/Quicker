@@ -1,0 +1,9 @@
+((("chronic kidney disease"[Title/Abstract] OR "CKD"[Title/Abstract] OR "kidney failure"[Title/Abstract] OR "renal insufficiency"[Title/Abstract] OR "nephropathy"[Title/Abstract]) 
+AND 
+("estimated glomerular filtration rate"[Title/Abstract] OR "eGFR"[Title/Abstract] OR "cystatin C"[Title/Abstract] OR "eGFRcys"[Title/Abstract] OR "creatinine-based eGFR"[Title/Abstract] OR "eGFRcr"[Title/Abstract] OR ("cystatin C"[Title/Abstract] AND "creatinine"[Title/Abstract] AND "eGFR"[Title/Abstract])) 
+AND 
+("measured glomerular filtration rate"[Title/Abstract] OR "mGFR"[Title/Abstract] OR "urinary clearance"[Title/Abstract] OR "plasma clearance"[Title/Abstract] OR "inulin clearance"[Title/Abstract] OR "iohexol clearance"[Title/Abstract] OR "iothalamate clearance"[Title/Abstract]) 
+AND 
+("predict*"[Title/Abstract] OR "formula*"[Title/Abstract] OR "equation"[Title/Abstract] OR "regression analysis"[MeSH Terms] OR "diagnos*"[Title/Abstract] OR "accuracy"[Title/Abstract] OR "sensitivity"[Title/Abstract] OR "specificity"[Title/Abstract])) 
+NOT ("animals"[MeSH Terms] NOT "humans"[MeSH Terms]) 
+NOT "review"[Publication Type])

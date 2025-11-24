@@ -1,0 +1,9 @@
+(
+  (("Chronic Kidney Disease"[tiab] OR CKD[tiab] OR "Kidney Failure"[tiab] OR "Kidney Disease"[tiab] OR "Diabetic Nephropathy"[tiab] OR "Nondiabetic Nephropathy"[tiab] OR "Type 2 Diabetes"[tiab] OR T2D[tiab] OR "Diabetes Mellitus, Type 2"[Mesh] OR "Heart Failure"[tiab] OR "Cardiac Failure"[tiab] OR "Non-Albuminuric Kidney Disease"[tiab]) 
+  AND 
+  ("Sodium-Glucose Cotransporter-2 Inhibitors"[tiab] OR "SGLT2 Inhibitors"[tiab] OR Canagliflozin[tiab] OR Dapagliflozin[tiab] OR Empagliflozin[tiab] OR Ertugliflozin[tiab] OR Ipragliflozin[tiab] OR Luseogliflozin[tiab] OR Remogliflozin[tiab] OR Sotagliflozin[tiab] OR Tofogliflozin[tiab])) 
+  AND 
+  (Randomized controlled trial[pt] OR Controlled clinical trial[pt] OR Randomized[tiab] OR Placebo[tiab] OR "Clinical Trials as Topic"[mh:noexp] OR Randomly[tiab] OR Trial[ti])
+  ) 
+  NOT 
+  (Animals[mh] NOT Humans[mh])

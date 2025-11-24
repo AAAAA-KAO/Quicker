@@ -1,0 +1,1 @@
+("rheumatoid arthritis"[tiab] OR RA[tiab]) AND ("methotrexate intolerance"[tiab] OR "MTX intolerance"[tiab]) AND ("folic acid 1 mg"[tiab] OR "folate 1 mg"[tiab]) AND ("increase folic acid"[tiab] OR "increased folate dose"[tiab] OR "folic acid > 1 mg"[tiab] OR "folate > 1 mg"[tiab]) AND ("folic acid 1 mg"[tiab] OR "folate 1 mg"[tiab])

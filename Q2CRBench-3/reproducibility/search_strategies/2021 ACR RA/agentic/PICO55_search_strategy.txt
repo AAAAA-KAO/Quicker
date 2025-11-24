@@ -1,0 +1,11 @@
+(
+("Rheumatoid Arthritis"[Title/Abstract] OR "RA"[Title/Abstract] OR "arthritis, rheumatoid"[MeSH Terms]) 
+AND 
+("DMARDs"[Title/Abstract] OR "Disease-Modifying Antirheumatic Drugs"[Title/Abstract] OR "Antirheumatic Agents"[MeSH Terms]) 
+AND 
+("Glucocorticoids"[Title/Abstract] OR "GCs"[Title/Abstract] OR "Corticosteroids"[Title/Abstract] OR "Glucocorticoids"[MeSH Terms]) 
+AND 
+("Low Dose Glucocorticoids"[Title/Abstract] OR "Remission"[Title/Abstract] OR "Low Disease Activity"[Title/Abstract] OR "Remission Induction"[MeSH Terms]) 
+AND 
+("Taper off"[Title/Abstract] OR "Glucocorticoid Withdrawal"[Title/Abstract] OR "Corticosteroid Withdrawal"[Title/Abstract] OR "Discontinuation"[Title/Abstract] OR "Reducing Glucocorticoids"[Title/Abstract])
+)

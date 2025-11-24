@@ -1,0 +1,5 @@
+(
+  ("Dementia"[MeSH] OR "dementia"[tiab] OR "Cognitive Dysfunction"[MeSH] OR "cognitive impairment"[tiab] OR "Alzheimer Disease"[MeSH] OR "Alzheimer*"[tiab] OR "Lewy Body Disease"[MeSH] OR "Lewy body dementia"[tiab] OR "Vascular Dementia"[tiab] OR "Frontotemporal Dementia"[MeSH] OR "frontotemporal dementia"[tiab])
+  AND
+  ("Antipsychotic Agents"[MeSH] AND ("discontinuation"[tiab] OR "withdrawal"[tiab] OR "stopping"[tiab] OR "ceasing"[tiab] OR "halting"[tiab] OR "antipsychotic discontinuation"[tiab] OR "withdrawal antipsychotic"[tiab] OR "stopping antipsychotic"[tiab] OR "ceasing antipsychotic"[tiab] OR "halting antipsychotic"[tiab]))
+)

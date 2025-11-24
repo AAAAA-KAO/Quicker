@@ -1,0 +1,1 @@
+("rheumatoid arthritis"[MeSH Terms] OR "rheumatoid arthritis"[tiab] OR "RA"[tiab] OR "chronic polyarthritis"[tiab]) AND ("treat-to-target"[tiab] OR "T2T"[tiab] OR "low disease activity"[tiab] OR "disease activity score"[tiab] OR "DAS28"[tiab]) AND ("remission"[tiab] OR "complete remission"[tiab] OR "clinical remission"[tiab] OR "sustained remission"[tiab])

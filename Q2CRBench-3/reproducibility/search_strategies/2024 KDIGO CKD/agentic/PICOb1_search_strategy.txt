@@ -1,0 +1,9 @@
+(("chronic kidney disease"[Title/Abstract] OR "CKD"[Title/Abstract] OR "renal insufficiency"[Title/Abstract] OR "kidney failure"[Title/Abstract] OR "diabetic nephropathy"[Title/Abstract] OR "non-diabetic kidney disease"[Title/Abstract] OR "albuminuria"[Title/Abstract] OR "proteinuria"[Title/Abstract] OR "type 2 diabetes"[Title/Abstract] OR "T2D"[Title/Abstract] OR "Diabetic Nephropathies"[MeSH] OR "Kidney Failure, Chronic"[MeSH] OR "Albuminuria"[MeSH] OR "Proteinuria"[MeSH] OR "Diabetes Mellitus, Type 2"[MeSH]) 
+AND 
+("sodium-glucose cotransporter-2 inhibitor"[Title/Abstract] OR "SGLT2 inhibitor"[Title/Abstract] OR "SGLT2 inhibitors"[Title/Abstract] OR "canagliflozin"[Title/Abstract] OR "dapagliflozin"[Title/Abstract] OR "empagliflozin"[Title/Abstract] OR "ertugliflozin"[Title/Abstract] OR "ipragliflozin"[Title/Abstract] OR "luseogliflozin"[Title/Abstract] OR "remogliflozin"[Title/Abstract] OR "sotagliflozin"[Title/Abstract] OR "tofogliflozin"[Title/Abstract] OR "Glucosides"[MeSH]) 
+AND 
+("randomized controlled trial"[Publication Type] OR "controlled clinical trial"[Publication Type] OR "Randomized"[Title/Abstract] OR "Placebo"[Title/Abstract] OR "Clinical trials as topic"[MeSH:noexp] OR "Randomly"[Title/Abstract] OR "Trial"[Title])) 
+NOT 
+("animals"[MeSH] NOT "humans"[MeSH]) 
+AND 
+1946/01/01:2023/04/30[Date - Publication]

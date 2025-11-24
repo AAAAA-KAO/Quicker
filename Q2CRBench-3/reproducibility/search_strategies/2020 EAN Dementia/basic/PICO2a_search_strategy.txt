@@ -1,0 +1,5 @@
+(
+    ("dementia"[tiab] OR "Dementia"[Mesh] OR "Alzheimer disease"[tiab] OR "Alzheimer Disease"[Mesh] OR "vascular dementia"[tiab] OR "Atrial Fibrillation"[Mesh] OR "atrial fibrillation"[tiab] OR "cognitive impairment"[tiab] OR "Cognitive Dysfunction"[Mesh])
+    AND
+    ("NOACs"[tiab] OR "Novel oral anticoagulants"[tiab] OR "Direct oral anticoagulants"[tiab] OR "DOACs"[tiab] OR "warfarin"[tiab] OR "Warfarin"[Mesh] OR "coumadin"[tiab] OR "Anticoagulants"[Mesh] OR "anticoagulants"[tiab] OR "vitamin K antagonists"[tiab] OR "Vitamin K Antagonists"[Mesh])
+)

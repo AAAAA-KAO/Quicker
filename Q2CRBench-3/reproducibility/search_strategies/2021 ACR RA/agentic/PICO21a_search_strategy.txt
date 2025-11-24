@@ -1,0 +1,1 @@
+("rheumatoid arthritis"[tiab] OR "RA"[tiab] OR "Arthritis, Rheumatoid"[Mesh]) AND ("DMARD"[tiab] OR "disease-modifying antirheumatic drugs"[tiab] OR "Antirheumatic Agents"[Mesh]) AND ("switch"[tiab] OR "change"[tiab])

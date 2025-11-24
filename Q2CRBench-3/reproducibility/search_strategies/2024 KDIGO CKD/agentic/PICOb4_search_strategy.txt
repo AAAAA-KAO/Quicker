@@ -1,0 +1,12 @@
+(
+("chronic kidney disease"[Title/Abstract] OR "CKD"[Title/Abstract] OR "kidney failure"[Title/Abstract] OR "renal insufficiency"[Title/Abstract] OR "chronic renal disease"[Title/Abstract] OR "chronic renal insufficiency"[Title/Abstract] OR "chronic kidney insufficiency"[Title/Abstract] OR "renal failure"[Title/Abstract] OR "CKF"[Title/Abstract] OR "chronic kidney failure"[Title/Abstract] OR "renal dysfunction"[Title/Abstract]) 
+AND 
+("aspirin"[Title/Abstract] OR "acetylsalicylic acid"[Title/Abstract] OR "ASA"[Title/Abstract]) 
+AND 
+("placebo"[Title/Abstract]) 
+AND 
+("Randomized controlled trial"[Publication Type] OR "Controlled clinical trial"[Publication Type] OR "Randomized"[Title/Abstract] OR "Placebo"[Title/Abstract] OR "Drug therapy"[MeSH Subheading] OR "Randomly"[Title/Abstract] OR "Trial"[Title/Abstract] OR "Groups"[Title/Abstract])
+) 
+NOT 
+("animals"[MeSH Terms] NOT "humans"[MeSH Terms])
+AND 1946/01/01:2022/08/31[Date - Publication]

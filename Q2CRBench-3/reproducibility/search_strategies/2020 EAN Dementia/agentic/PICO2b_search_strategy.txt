@@ -1,0 +1,5 @@
+(
+  ("dementia"[Title/Abstract] OR "Alzheimer's disease"[Title/Abstract] OR "cognitive impairment"[Title/Abstract] OR "Dementia"[MeSH Terms] OR "Alzheimer Disease"[MeSH Terms] OR "Cognition Disorders"[MeSH Terms]) 
+  AND 
+  ("vascular risk factor management"[Title/Abstract] OR "systematic management"[Title/Abstract] OR "hypertension management"[Title/Abstract] OR "blood pressure control"[Title/Abstract] OR "hypercholesterolemia management"[Title/Abstract] OR "cholesterol reduction"[Title/Abstract] OR "blood sugar control"[Title/Abstract] OR "glycemic control"[Title/Abstract] OR "Risk Factors"[MeSH Terms] OR "Hypertension"[MeSH Terms] OR "Blood Pressure"[MeSH Terms] OR "Hypercholesterolemia"[MeSH Terms] OR "Cholesterol"[MeSH Terms] OR "Diabetes Mellitus, Type 2"[MeSH Terms] OR "Blood Glucose"[MeSH Terms] OR "Glycemic Control"[MeSH Terms])
+) AND 1946/01/01:2017/12/31[Date - Publication]

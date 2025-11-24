@@ -1,0 +1,11 @@
+(
+("dementia"[MeSH Terms] OR "dementia"[Title/Abstract] OR "Alzheimer's disease"[Title/Abstract] OR "vascular dementia"[Title/Abstract] OR "mixed dementia"[Title/Abstract] OR "frontotemporal dementia"[Title/Abstract] OR "Lewy body dementia"[Title/Abstract])
+AND
+("atrial fibrillation"[MeSH Terms] OR "atrial fibrillation"[Title/Abstract] OR "AFib"[Title/Abstract] OR "AF"[Title/Abstract])
+AND
+("anticoagulants"[MeSH Terms] OR "anticoagulants"[Title/Abstract] OR "NOACs"[Title/Abstract] OR "novel oral anticoagulants"[Title/Abstract] OR "direct oral anticoagulants"[Title/Abstract] OR "DOACs"[Title/Abstract] OR "warfarin"[Title/Abstract])
+)
+NOT
+("previous stroke"[Title/Abstract] OR "transient cerebral ischemia"[Title/Abstract] OR "TCI"[Title/Abstract])
+AND
+("1946/01/01"[Date - Publication] : "2017/12/31"[Date - Publication])

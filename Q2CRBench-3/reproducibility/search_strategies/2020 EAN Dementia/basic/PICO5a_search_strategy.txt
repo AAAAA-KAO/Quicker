@@ -1,0 +1,1 @@
+(“dementia”[tiab] OR "Alzheimer's disease"[tiab] OR "cognitive impairment"[tiab] OR “Dementia”[Mesh] OR “Alzheimer Disease”[Mesh] OR “Cognitive Dysfunction”[Mesh]) AND (“opioids”[tiab] OR “narcotics”[tiab] OR “opioid analgesics”[tiab] OR “opioid discontinuation”[tiab] OR “Analgesics, Opioid”[Mesh])

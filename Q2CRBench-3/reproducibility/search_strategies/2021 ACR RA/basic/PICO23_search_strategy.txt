@@ -1,0 +1,5 @@
+("rheumatoid arthritis"[tiab] OR "RA"[tiab] OR "DMARD"[tiab] OR "disease-modifying antirheumatic drugs"[tiab] OR "glucocorticoids"[tiab] OR "steroids"[tiab] OR "Arthritis, Rheumatoid"[Mesh] OR "Glucocorticoids"[Mesh]) 
+AND 
+("second DMARD"[tiab] OR "combined DMARD"[tiab] OR "add DMARD"[tiab] OR "add-on therapy"[tiab] OR "Drug Therapy, Combination"[Mesh])
+AND 
+("switch DMARD"[tiab] OR "change DMARD"[tiab] OR "alternative DMARD"[tiab] OR "Treatment Outcome"[Mesh])

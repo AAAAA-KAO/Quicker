@@ -1,0 +1,5 @@
+("rheumatoid arthritis"[Mesh] OR "rheumatoid arthritis"[tiab] OR "RA"[tiab]) 
+AND
+("boDMARD naive"[tiab] OR "tsDMARD naive"[tiab] OR "biologic DMARD naive"[tiab] OR "targeted synthetic DMARD naive"[tiab] OR "DMARD naive"[tiab]) 
+AND
+("treat-to-target"[tiab] OR "T2T"[tiab] OR "targeted treatment strategy"[tiab] OR "goal-directed therapy"[tiab] OR "treatment strategy"[tiab])

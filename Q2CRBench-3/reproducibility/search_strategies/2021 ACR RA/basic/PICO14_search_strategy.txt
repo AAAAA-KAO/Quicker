@@ -1,0 +1,1 @@
+("rheumatoid arthritis"[tiab] OR "RA"[tiab] OR "treat-to-target"[tiab] OR "T2T"[tiab]) AND ("DMARD escalation"[tiab] OR "dose escalation"[tiab] OR "treatment escalation"[tiab] OR "treatment adjustment"[tiab] OR "treatment intensification"[tiab] OR "less than 3 months"[tiab])

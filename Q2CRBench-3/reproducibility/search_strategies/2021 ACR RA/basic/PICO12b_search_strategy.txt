@@ -1,0 +1,1 @@
+("rheumatoid arthritis"[tiab] OR "RA"[tiab]) AND ("bDMARD"[tiab] OR "biological DMARD"[tiab] OR "biologic DMARD"[tiab] OR "tsDMARD"[tiab] OR "targeted synthetic DMARD"[tiab]) AND ("inadequate response"[tiab] OR "treatment failure"[tiab]) AND ("treat to target"[tiab] OR "T2T"[tiab] OR "treatment strategy"[tiab])

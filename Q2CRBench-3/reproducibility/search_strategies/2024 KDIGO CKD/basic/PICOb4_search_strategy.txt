@@ -1,0 +1,11 @@
+(
+("Chronic Kidney Disease"[Mesh] OR "CKD"[tiab] OR "Renal Insufficiency"[Mesh] OR "Kidney Failure"[Mesh] OR "Chronic Renal Disease"[tiab] OR "Nondiabetic Kidney Disease"[tiab]) 
+AND 
+("Aspirin"[Mesh] OR "Acetylsalicylic Acid"[Mesh] OR "ASA"[tiab]) 
+AND 
+("Randomized controlled trial"[pt] OR "Controlled clinical trial"[pt] OR Randomized[tiab] OR Placebo[tiab] OR "Drug therapy"[sh] OR Randomly[tiab] OR Trial[tiab] OR Groups[tiab]) 
+NOT 
+(Infant[mh] OR "infant health"[mh] OR "infant welfare"[mh] OR prematur*[tiab] OR pre-matur*[tiab] OR preterm*[tiab] OR preterm*[tiab] OR infan*[tiab] OR newborn*[tiab] OR new-born*[tiab] OR perinat*[tiab] OR peri-nat*[tiab] OR neonat*[tiab] OR neonat*[tiab] OR baby*[tiab] OR babies[tiab] OR toddler*[tiab] OR Child[mh] OR "child behavior"[mh] OR "child health"[mh] OR "child welfare"[mh] OR Minors[mh] OR Child*[tiab] OR minor[tiab] OR minors[tiab] OR boy*[tiab] OR girl*[tiab] OR kid[tiab] OR kids[tiab] OR young*[tiab] OR Pediatrics[mh] OR Pediatric*[tiab] OR paediatric*[tiab] OR peadiatric*[tiab] OR Adolescent[mh] OR "adolescent health"[mh] OR "adolescent behavior"[mh] OR Puberty[mh] OR adolescen*[tiab] OR pubescen*[tiab] OR prepubescen*[tiab] OR pre-pubescen*[tiab] OR pubert*[tiab] OR prepubert*[tiab] OR prepubert*[tiab] OR teen*[tiab] OR preteen*[tiab] OR preteen*[tiab] OR juvenil*[tiab] OR youth*[tiab] OR under*age*[tiab] OR Schools[mh] OR Child Day Care Centers[mh] or Nurseries[mh] or Schools, Nursery[mh] OR pre-school*[tiab] OR preschool*[tiab] OR kindergar*[tiab] OR daycare[tiab] OR day-care[tiab] OR nurser*[tiab] OR school*[tiab] OR pupil*[tiab] OR student*[tiab] OR "under 18*"[tiab] OR "under eighteen*"[tiab] OR "under 25*"[tiab] OR "under twenty five*"[tiab]) 
+NOT 
+(Animals[mh] NOT humans[mh])
+)

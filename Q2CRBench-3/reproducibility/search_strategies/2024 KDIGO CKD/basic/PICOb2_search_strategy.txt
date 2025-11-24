@@ -1,0 +1,13 @@
+` tags.
+
+Here's the developed search strategy:
+
+```plaintext
+<search strategy>
+(("Chronic Kidney Disease"[tiab] OR "CKD"[tiab] OR "Hyperuricemia"[tiab] OR "Asymptomatic Hyperuricemia"[tiab] OR "Adults with CKD"[tiab] OR "Children with CKD"[tiab] OR "Kidney Diseases"[Mesh]) 
+AND 
+("Uric Acid-lowering Therapy"[tiab] OR "ULT"[tiab] OR "Allopurinol"[tiab] OR "Benzbromarone"[tiab] OR "Febuxostat"[tiab] OR "Oxipurinol"[tiab] OR "Pegloticase"[tiab] OR "Probenecid"[tiab] OR "Topiroxostat"[tiab] OR "Rasburicase"[tiab] OR "Sulfinpyrazone"[tiab] OR "Lesinurad"[tiab] OR "Gout Suppressants"[Mesh])) 
+AND 
+(Randomized controlled trial[pt] OR Controlled clinical trial[pt] OR Randomized controlled trials[mh] OR randomized[tiab] OR placebo[tiab] OR "drug therapy"[Subheading] OR randomly[tiab] OR Trial[tiab] OR groups[tiab])
+NOT 
+(Animals[mh] NOT Humans[mh])

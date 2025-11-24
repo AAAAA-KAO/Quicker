@@ -1,0 +1,1 @@
+(“dementia”[tiab] OR “cognitive impairment”[tiab] OR “Alzheimer’s disease”[tiab] OR “agitation”[tiab] OR “aggressive behavior”[tiab] OR “behavioral symptoms”[tiab]) AND (“aripiprazole”[tiab] OR “zotepine”[tiab] OR “olanzapine”[tiab] OR “quetiapine”[tiab] OR “risperidone”[tiab] OR “clozapine”[tiab] OR “atypical antipsychotics”[tiab]) AND (“haloperidol”[tiab])

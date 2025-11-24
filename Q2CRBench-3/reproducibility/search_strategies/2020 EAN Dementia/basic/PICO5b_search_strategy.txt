@@ -1,0 +1,1 @@
+("Dementia"[Mesh] OR "dementia"[tiab] OR "Alzheimer’s disease"[tiab] OR "behavioral symptoms"[tiab] OR "agitation"[tiab] OR "aggression"[tiab]) AND ("Analgesics"[Mesh] OR "mild analgesics"[tiab] OR "paracetamol"[tiab] OR "acetaminophen"[tiab] OR "pain relievers"[tiab])

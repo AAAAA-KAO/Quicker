@@ -1,0 +1,9 @@
+(
+("chronic kidney disease"[Title/Abstract] OR "CKD"[Title/Abstract] OR "renal insufficiency"[Title/Abstract] OR "chronic renal disease"[Title/Abstract] OR "chronic kidney failure"[Title/Abstract] OR "kidney dysfunction"[Title/Abstract] OR "chronic renal failure"[Title/Abstract] OR "hyperuricemia"[Title/Abstract] OR "hyperuricaemia"[Title/Abstract] OR "high uric acid"[Title/Abstract] OR "elevated uric acid"[Title/Abstract] OR "kidney failure, chronic"[MeSH Terms]) 
+AND 
+("uric acid-lowering therapy"[Title/Abstract] OR "urate-lowering therapy"[Title/Abstract] OR "allopurinol"[Title/Abstract] OR "benzbromarone"[Title/Abstract] OR "febuxostat"[Title/Abstract] OR "oxipurinol"[Title/Abstract] OR "pegloticase"[Title/Abstract] OR "probenecid"[Title/Abstract] OR "topiroxostat"[Title/Abstract] OR "rasburicase"[Title/Abstract] OR "sulfinpyrazone"[Title/Abstract] OR "lesinurad"[Title/Abstract] OR "xanthine oxidase inhibitors"[Title/Abstract] OR "urate oxidase"[Title/Abstract] OR "uricosuric agent"[Title/Abstract] OR "uricosurics"[Title/Abstract]) 
+AND 
+("randomized controlled trial"[Publication Type] OR "controlled clinical trial"[Publication Type] OR "randomized controlled trials as topic"[MeSH Terms] OR randomized[Title/Abstract] OR placebo[Title/Abstract] OR "clinical trial"[Title/Abstract] OR randomly[Title/Abstract] OR trial[Title/Abstract] OR groups[Title/Abstract]))
+NOT 
+("animals"[MeSH Terms] NOT "humans"[MeSH Terms])
+) AND ("2016/01/01"[Date - Publication] : "2023/03/14"[Date - Publication])
