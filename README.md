@@ -1,6 +1,13 @@
 # Quicker
 From Questions to Clinical Recommendations: Large Language Models Driving Evidence-Based Clinical Decision-Making
 
+## 🎉 News
+
+> **🎊 Exciting Update [Dec 2025]**  
+> 📰 Our manuscript has been **accepted** by **npj Digital Medicine**! ✨  
+> 📝 **New title:** *Streamlining Evidence Based Clinical Recommendations with Large Language Models*  
+> 🚧 Currently in the publication process. Citation information will be updated as soon as available.
+
 **Preprint Manuscript:** [From Questions to Clinical Recommendations: Large Language Models Driving Evidence-Based Clinical Decision Making](
 https://doi.org/10.48550/arXiv.2505.10282)
 
