@@ -3,12 +3,10 @@ From Questions to Clinical Recommendations: Large Language Models Driving Eviden
 
 ## 🎉 News
 
-> **🎊 Exciting Update [Dec 2025]**  
-> 📰 Our manuscript has been **accepted** by **npj Digital Medicine**! ✨  
-> 📝 **New title:** *Streamlining Evidence Based Clinical Recommendations with Large Language Models*  
-> 🚧 Currently in the publication process. Citation information will be updated as soon as available.
-
-**Preprint Manuscript:** [From Questions to Clinical Recommendations: Large Language Models Driving Evidence-Based Clinical Decision Making](
+> **🎊 Published [Dec 2025]**  
+> 📰 Our manuscript has been **published** in **npj Digital Medicine**! ✨  
+> 📝 **Published Article:** [Streamlining Evidence Based Clinical Recommendations with Large Language Models](https://www.nature.com/articles/s41746-025-02273-y)  
+> 🔗 **Preprint Manuscript:** [From Questions to Clinical Recommendations: Large Language Models Driving Evidence-Based Clinical Decision Making](
 https://doi.org/10.48550/arXiv.2505.10282)
 
 `Quicker` is a large language model (LLM)-driven clinical decision support workflow that automates the entire process from clinical questions to evidence-based recommendations. Inspired by the methodology of clinical guideline development, Quicker streamlines decision-making and improves efficiency in evidence synthesis.
@@ -81,13 +79,18 @@ hash_value = file_sha256(path)
 # Citation
 
 ```
-@misc{li2025questionsclinicalrecommendationslarge,
-      title={From Questions to Clinical Recommendations: Large Language Models Driving Evidence-Based Clinical Decision Making}, 
-      author={Dubai Li and Nan Jiang and Kangping Huang and Ruiqi Tu and Shuyu Ouyang and Huayu Yu and Lin Qiao and Chen Yu and Tianshu Zhou and Danyang Tong and Qian Wang and Mengtao Li and Xiaofeng Zeng and Yu Tian and Xinping Tian and Jingsong Li},
-      year={2025},
-      eprint={2505.10282},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2505.10282}, 
+@article{liStreamliningEvidenceBased2025,
+  title = {Streamlining Evidence Based Clinical Recommendations with Large Language Models},
+  author = {Li, Dubai and Jiang, Nan and Huang, Kangping and Tu, Ruiqi and Ouyang, Shuyu and Yu, Huayu and Qiao, Lin and Yu, Chen and Zhou, Tianshu and Tong, Danyang and Wang, Qian and Li, Mengtao and Zeng, Xiaofeng and Tian, Yu and Tian, Xinping and Li, Jingsong},
+  year = 2025,
+  month = dec,
+  journal = {npj Digital Medicine},
+  publisher = {Nature Publishing Group},
+  issn = {2398-6352},
+  doi = {10.1038/s41746-025-02273-y},
+  urldate = {2025-12-26},
+  copyright = {2025 The Author(s)},
+  langid = {english},
+  keywords = {Health care,Literature mining}
 }
 ```
