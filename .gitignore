@@ -3,3 +3,5 @@ huggingface_version/
 *.py[cod]
 
 .env
+log
+config/config.json
