@@ -120,7 +120,7 @@ RULES_FOR_RCTS_ROBS = """The assessment of the risk of bias in randomized clinic
 3. One should be conservative in the judgment of rating down. That is, one should be confident that there is substantial risk of bias across most of the body of available evidence before one rates down for risk of bias. 
 4. Your judgment should be based on the provided content, and you should not speculate about situations you do not know. For instance, you should not assume that a randomized clinical trial inherently includes a well-designed blinding procedure. """
 
-# output parser
+# 输出格式
 study_design_json_parser = PydanticOutputParser(pydantic_object=GeneratedStudyDesign)
 population_json_parser = PydanticOutputParser(pydantic_object=GeneratedPopulation)
 intervention_json_parser = PydanticOutputParser(pydantic_object=GeneratedIntervention)
@@ -175,7 +175,7 @@ def choose_json_parser(component):
         return outcome_json_parser
 
 
-# question
+# 问题
 # study_design
 STUDY_DESIGN_QUESTION = "What is the study design of the given paper? Please choose one from the following options: <option>Systematic Review</option>, <option>Meta-Analysis</option>, <option>Randomized Controlled Trial</option>, <option>Cohort Study</option>, <option>Other Observational Study</option> or <option>Not Applicable</option>. "
 # PICO

@@ -8,21 +8,16 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Dict
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
-from dotenv import load_dotenv
 
 
 from utils.Evidence_Assessment.outcome import Outcome
 from utils.Evidence_Assessment.paper import Paper
 from utils.Evidence_Assessment.evidence import Evidence
 
-load_dotenv()
-
-RANDOM_SEED = int(os.getenv('RANDOM_SEED', 42))
-
 
 class QuickerStage(int, Enum):  # 这个int表示枚举类的值是int类型
     '''
-    Current stage depends on the precondition and necessary input condition are satisfied, such as the question deconstruction stage, which should have pre-sequence information and clinical questions (input)
+    当前阶段取决于前置条件和必要输入条件都满足，比如问题解构阶段，应该有前序信息和临床问题（input）
     '''
 
     INITIAL_STAGE = 0
@@ -39,7 +34,7 @@ class QuickerStage(int, Enum):  # 这个int表示枚举类的值是int类型
 
 class StageState(str, Enum):
     '''
-    State of stage
+    阶段状态
     '''
 
     NOT_STARTED = "Not Started"
@@ -68,7 +63,10 @@ class QuickerData:
         paper_list: List[Paper] = None,
         supplementary_information: str = None,
     ):
-
+        '''
+        分为input和output两部分，input是用户输入的数据，output是程序输出的数据。input分为必须和可选两部分。
+        只有满足前序条件和必须input条件才能进入下一个阶段
+        '''
         self.stage = QuickerStage.INITIAL_STAGE
         self.stage_state = StageState.NOT_STARTED
 
@@ -87,8 +85,8 @@ class QuickerData:
             },
             QuickerStage.LITERATURE_SEARCH: {
                 'input': [
-                    'study',  # list
-                    'outcome',  # dict, Dict[str: list]
+                    'study',  #! 改成list了
+                    'outcome',  # dict, 对不同的pic，需要不同的outcome str: list
                     'search_config',
                     'annotation',  # dict default: {}
                 ],  # dict
@@ -104,15 +102,15 @@ class QuickerData:
                 ],
                 'output': [
                     'record_included_studies',
-                    'full_text_included_studies',  # List[Paper]
-                    'total_outcome_list',  # List[Outcome]
-                    'valid_comparison_list',  # List[str]
+                    'full_text_included_studies',  # List[Paper] 这里应该提取过全文的PICOS了
+                    'total_outcome_list',  # List[Outcome], 从full_text_included_studies中提取的outcome_list
+                    'valid_comparison_list',  # List[str], 找到证据的比较组
                 ],
             },
             QuickerStage.EVIDENCE_ASSESSMENT: {
                 'input': [
-                    'outcome_list',  # List[Outcome]
-                    'paper_list',  # List[Paper]
+                    'outcome_list',  # List[Outcome], 用户/Agent指定p,i,c,o和对应的文献
+                    'paper_list',  # List[Paper], 基于full_text_included_studies，要做（人工下载，匹配）匹配，所以实际上是output
                 ],
                 'output': ['evidence_assessment_results'],
             },
@@ -122,7 +120,7 @@ class QuickerData:
             },
         }
 
-        # initilize all attributes to None
+        # 初始化所有属性为 None
         for stage_data in self.data.values():
             for attr_type in stage_data.values():
                 for attr in attr_type:
@@ -181,17 +179,16 @@ class QuickerData:
 
     def update_data(self, kwargs: dict):
         """
-        updata data and identify stage. All data updates should be done through this method, and the data should come from the same stage
-
-        :param kwargs: dict, the data to be updated
+        更新类中的数据并自动确认阶段，必须注意，所有的数据更新都是通过这个方法进行的，且每次更新的数据都应该来自同一个阶段
+        :param kwargs: 字典参数，用于更新类属性
         """
         stage_flag = None
         for key, value in kwargs.items():
             if hasattr(self, key):
                 if getattr(self, key) == value:
-                    continue  # if no change, skip
+                    continue  # 如果数据没有变化，不更新
                 setattr(self, key, value)
-                # if update output data, clear the data of later stages
+                # 如果更新了某阶段的output数据，清除后续阶段的数据
 
                 for stage_name, stage_data in self.data.items():
                     if key in stage_data['output']:
@@ -210,7 +207,9 @@ class QuickerData:
 
                         if self.stage == stage_name:
                             self.stage_state = StageState.COMPLETED
-                        elif self.stage - 1 == stage_name:
+                        elif (
+                            self.stage - 1 == stage_name
+                        ):  # 说明给出output数据后，因为下一个阶段的input本来就有，所以自动进入了下一个阶段，此时该阶段是没有开始的
                             self.stage_state = StageState.NOT_STARTED
                         else:
                             raise ValueError(
@@ -226,12 +225,16 @@ class QuickerData:
                             assert (
                                 stage_flag == stage_name
                             ), f"Invalid stage {stage_name} after updating {stage_flag}:{key}"
-                        # update
+                        # 更新阶段
                         if self.is_stage(stage_name):
                             setattr(self, 'stage', stage_name)
-                            self.stage_state = StageState.NOT_STARTED
+                            self.stage_state = (
+                                StageState.NOT_STARTED
+                            )  # 代表输入输出不是一组，输出可以更新
                         else:
-                            setattr(self, 'stage', QuickerStage(stage_name - 1))
+                            setattr(
+                                self, 'stage', QuickerStage(stage_name - 1)
+                            )  # 输入不足，阶段不变
                             self.stage_state = StageState.COMPLETED
 
                         stage_flag = stage_name
@@ -244,11 +247,11 @@ class QuickerData:
 
     def clean_data(self, mode: str = "output", current_stage=None):
         """
-        clean the data of the later stages according to the current stage
+        根据当前阶段清理无效数据
 
         args:
-            mode: str, clean mode, 'output' means to clean the output data of the current stage, 'all' means to clean all data after the current stage
-            current_stage: QuickerStage, current stage, default is None, which means to clean all data after the current stage
+            mode: str, 清理模式，'output'表示清理当前阶段之后的output数据，'all'表示清理当前阶段之后的所有数据
+            current_stage: QuickerStage, 当前阶段，默认为None，即当前阶段为类属性中的stage
         """
         if current_stage is None:
             current_stage = self.stage
@@ -263,6 +266,7 @@ class QuickerData:
                     for attr in self.data[stage]['input']:
                         setattr(self, attr, None)
 
+    # 需要满足上一阶段的output数据和当前阶段的必要的input数据都有值
     def is_stage(self, stage: QuickerStage):
         '''
         Is satisfied with the input of the given stage and the output of the previous stage
@@ -365,10 +369,12 @@ class QuickerData:
         for i in range(stage.value + 1):
             for attr in self.data[QuickerStage(i)]['input']:
                 # firstly, add input data
-                if attr in default_value.keys():
+                if attr in default_value.keys():  # 如果有默认值，就用默认
                     self.update_data({attr: default_value[attr]})
                 else:
-                    if getattr(self, attr) is None:
+                    if (
+                        getattr(self, attr) is None
+                    ):  # 如果没有默认值，且没有被赋值过,就用''
                         if attr in ["search_config", "outcome", "annotation"]:
                             self.update_data({attr: {}})
                         elif attr in ['study', 'outcome_list', 'paper_list']:
@@ -382,7 +388,9 @@ class QuickerData:
                 if attr in default_value.keys():
                     self.update_data({attr: default_value[attr]})
                 else:
-                    if getattr(self, attr) is None:
+                    if (
+                        getattr(self, attr) is None
+                    ):  # 如果没有默认值，且没有被赋值过,就用'
                         if attr == 'search_results':
                             self.update_data({attr: {}})
                         elif attr in [
@@ -435,9 +443,7 @@ class Quicker:
 
         self.model_config: dict = self.config['model']
 
-        self.comparator_postfix_map = (
-            None  #! use in test for mapping comparator and postfix manually
-        )
+        self.comparator_postfix_map = None  #! 测试用，用来map comparator和postfix
 
     @property
     def paper_library_path(self):
@@ -496,7 +502,7 @@ class Quicker:
 
     def update_input_data(self, kwargs: dict):
         '''
-        update the input data of the QuickerData
+        更新input数据，禁止更新Initial Stage的数据
         '''
         blacklist = self.quicker_data.data[QuickerStage.INITIAL_STAGE]['input']
         for key in kwargs.keys():
@@ -524,6 +530,7 @@ class Quicker:
         '''
 
         if self.comparator_postfix_map is None:
+            # 使用comparator的hash值作为postfix
             comparator_dict = {
                 comparator: hashlib.md5(comparator.encode()).hexdigest()[:6]
                 for comparator in getattr(self.quicker_data, 'valid_comparison_list')
@@ -533,7 +540,7 @@ class Quicker:
                 for comparator, comparator_postfix in comparator_dict.items()
             }
         else:
-            return self.comparator_postfix_map
+            return self.comparator_postfix_map  #! 仅在测试证据评价时会预先定义
 
     def set_inclusion_exclusion_criteria(
         self, inclusion_criteria: str, exclusion_criteria: str
@@ -566,7 +573,11 @@ class Quicker:
                     'multi-query'
                 )
             else:
-                study = self.quicker_data.study if self.quicker_data.study else None
+                study = (
+                    self.quicker_data.study
+                    if self.quicker_data.study
+                    else None  # todo 后续应该考虑enum的兼容
+                )
                 clinical_question_with_pico = get_clinical_question_with_pico(
                     clinical_question=self.quicker_data.clinical_question,
                     population=self.quicker_data.population,
@@ -604,7 +615,7 @@ class Quicker:
                 screening_results_save_path_list=screening_results_save_path_list,
                 threshold=self.config['study_selection']['threshold'],
             )
-
+        #! 这里之后可以调整出一个外部函数
         elif isinstance(
             self.config['study_selection']['record_screening_method'], dict
         ) and self.config['study_selection']['record_screening_method'].get(
@@ -643,7 +654,7 @@ class Quicker:
                     else None
                 )
                 if not doi.startswith('10.'):
-                    doi = None
+                    doi = None  #! 这里有问题吧，应该统一成10.开头的doi
                 paper_uid = Paper.get_paper_uid(
                     doi=doi,
                     pmid=pmid,
@@ -685,8 +696,8 @@ class Quicker:
         )
 
         # ******************full text assessment*********************
-        #! Load all paper lists under the specified path, retaining only papers with Study Design and Characteristics
-        # Obtain all JSON files in the paperinfo_json_folder path that start with paperinfo_PICO{pico_idx}, including papers that were assessed but not selected. The purpose here is to avoid duplicate assessments.
+        #! load 路径下所有paper_list, 仅保留有Study Design和Characteristics的paper
+        # 获得paperinfo_json_folder路径下所有以paperinfo_PICO{pico_idx}为开头的json文件，包括没入选但是评估过的paper，这里的目的是防止重复评估
         paperinfo_json_folder = os.path.join(  # paperinfo_json_path
             self.study_selection_database_path,
             "paperinfo",
@@ -698,7 +709,9 @@ class Quicker:
         paperinfo_json_files = [
             f
             for f in os.listdir(paperinfo_json_folder)
-            if f.startswith(f"paperinfo_PICO{self.quicker_data.pico_idx}")
+            if f.startswith(
+                f"paperinfo_PICO{self.quicker_data.pico_idx}"
+            )  # 因为这里要包括评估但没入选的paper，所以不用load_paperinfo函数
             and f.endswith('.json')
         ]
         # load paperinfo JSON
@@ -719,11 +732,15 @@ class Quicker:
             paper.get('paper_uid'): paper for paper in record_included_paper_list
         }
 
+        # 遍历 assessed_paper_list 并更新对应的 record_included_paper_list
         for assessed_paper in assessed_paper_list:
             paper_uid = assessed_paper.get('paper_uid')
             if paper_uid and paper_uid in record_dict.keys():
-                record_dict[paper_uid].update(assessed_paper)
+                record_dict[paper_uid].update(
+                    assessed_paper
+                )  #! 这里的逻辑是基于record_included_paper_list的record作为全集，可以考虑将现有的和新的paper合并，然后再去重
 
+        # 如果需要将更新后的字典转换回列表
         record_included_paper_list = list(record_dict.values())
 
         # full text assessment. Output, outcome_list, paper_list
@@ -750,7 +767,7 @@ class Quicker:
                     reupdate_component_list=reupdate_component_list,
                 )
             )
-            .with_config(max_concurrency=5)
+            .with_config(max_concurrency=1)
             .with_retry(stop_after_attempt=2)
         )
 
@@ -837,7 +854,7 @@ class Quicker:
                         valid_comparison_list=original_valid_comparison_list
                         + [comparator]
                     )
-                )
+                )  #! 注意，这里可能出现有comparator无outcome的情况，后续用这来生成outcome_list，会先默认生成一个空的outcome_list
 
                 saved_papers_dict[comparator] = tmp_paper_list
                 # save the updated paper
@@ -858,7 +875,9 @@ class Quicker:
         # save outcome_list
         total_outcome_list = []
         for comparator in getattr(self.quicker_data, 'valid_comparison_list'):
-            candidate_paper_list = saved_papers_dict.get(comparator)
+            candidate_paper_list = saved_papers_dict.get(
+                comparator
+            )  # PIC都是一致的，Study Design和Outcome不同
             outcome_list = []
             for outcome in self.quicker_data.outcome[comparator]:
                 paper_with_target_outcome = [
@@ -868,7 +887,7 @@ class Quicker:
                         outcome, paper.characteristics['outcome']['outcome']
                     )
                 ]
-                # Group paper_with_target_outcome by study_design
+                # 按照study_design将paper_with_target_outcome分组
                 study_design_group = {}
                 for paper in paper_with_target_outcome:
                     if paper.study_design not in study_design_group:
@@ -887,7 +906,7 @@ class Quicker:
                             intervention=self.quicker_data.intervention,
                             comparator=comparator,
                             outcome=outcome,
-                            importance="CRITICAL",  # default value
+                            importance="CRITICAL",  #! 这里后续要改
                             related_paper_list=[
                                 paper.paper_uid for paper in paper_list
                             ],
@@ -895,7 +914,7 @@ class Quicker:
                                 'GRADE': {"Study design": study_design.name}
                             },
                         )
-                        for study_design, paper_list in study_design_group.items()
+                        for study_design, paper_list in study_design_group.items()  #! 这里后面要改成study符合inclusion criteria的才加入
                     ]
                 )
             total_outcome_list.extend(outcome_list)
@@ -956,22 +975,22 @@ class Quicker:
         # search_results_path = getattr(self.quicker_data, 'search_results_path')
         # search_results = pd.read_csv(search_results_path)
         search_results = getattr(self.quicker_data, 'search_results')
-        search_results = pd.DataFrame(search_results)
+        search_results = pd.DataFrame(search_results)  #! 很可能报错，后续记得核查
         logging.info('search result length: ' + str(len(search_results)))
         search_results = search_results.dropna(
             subset=['Paper_Index', 'Title', 'Abstract']
-        )  # Remove rows where Title and Abstract are empty
+        )  # 去除Title和Abstract为空的行
         logging.info('search result length after dropna: ' + str(len(search_results)))
         if need_sample:
             included_paper = search_results[
                 search_results['Full-text_Assessment'] == 'Included'
             ]
-            # Extract all papers with determination as Excluded
+            # 取出所有determination为Excluded的paper
             excluded_paper = search_results[
                 search_results['Full-text_Assessment'] == 'Excluded'
             ]
 
-            # Randomly sample excluded papers and combine them with included papers, with a total count of total_num
+            # 随机抽取excluded paper与included paper合并，总数为total_num
             included_num = len(included_paper)
             if len(excluded_paper) >= need_sample:
                 excluded_num = max(0, need_sample - included_num)
@@ -982,17 +1001,17 @@ class Quicker:
                 f"Sample {need_sample} papers from included paper and {excluded_num} papers from excluded paper"
             )
 
-            # Randomly sample excluded papers
+            # 随机抽取excluded paper
             excluded_paper_sample = excluded_paper.sample(
-                n=excluded_num, random_state=RANDOM_SEED
+                n=excluded_num, random_state=42
             )
 
             papers_df = pd.concat([included_paper, excluded_paper_sample])
 
-            # Shuffle the paper list
-            search_results = papers_df.sample(
-                frac=1, random_state=RANDOM_SEED
-            ).reset_index(drop=True)
+            # 将paper_list打乱
+            search_results = papers_df.sample(frac=1, random_state=42).reset_index(
+                drop=True
+            )
         if save_path:
             file_name = (
                 'PICO'
@@ -1000,7 +1019,9 @@ class Quicker:
                 + f'({len(search_results)} samples).json'
             )
             save_path = os.path.join(save_path, file_name)
-            search_results.to_json(save_path, orient='records', indent=4)
+            search_results.to_json(
+                save_path, orient='records', indent=4
+            )  # indent是用来缩进的，indent=4表示缩进4个空格
             logging.info(f"Search results are saved to {save_path}")
         return search_results
 
@@ -1019,17 +1040,17 @@ class Quicker:
             List[dict], the full text assessment paper list
         '''
 
-        # Merge all .csv files in generated_save_path_list into a single DataFrame
-        # Read and merge all CSV files
+        # 将generated_save_path_list中的所有.csv文件合并到一个DataFrame中
+        # 读取并合并所有CSV文件
         all_verdict_df = pd.concat(
             [pd.read_csv(path) for path in screening_results_save_path_list],
             axis=0,
             ignore_index=True,
         )
 
-        # Group the generated_verdict_df by paper_id and calculate the total number of rows where the llm_record_screening_verdict column is "Included"
+        # 将generated_verdict_df按照paper_id进行groupby，然后计算所有行的llm_record_screening_verdict列为Included的总数sum
 
-        # Calculate the number of "Included" in the llm_record_screening_verdict column for each group in generated_verdict_df.groupby('Paper_Index')
+        # 计算generated_verdict_df.groupby('Paper_Index')的列llm_record_screening_verdict有多少个Included
         key_col = [
             'Paper_Index',
             'Title',
@@ -1041,10 +1062,10 @@ class Quicker:
             .reset_index(name='Included_Num')
         )
 
-        # Retain only rows where Included_Num is greater than or equal to the threshold
+        # 仅保留Included_Num大于等于threshold的行
         included_num = included_num[included_num['Included_Num'] >= threshold]
 
-        # Extract the Paper_Index column from included_num, and based on the values in the Paper_Index column, extract the corresponding rows from single_exp_df
+        # 从included_num中提取Paper_Index列，根据Paper_Index列的值，从single_exp_df中提取对应的行
         full_text_assessment_paper_list = []
         for paper_index in included_num['Paper_Index']:
 
@@ -1054,7 +1075,7 @@ class Quicker:
                 .to_dict()
             )
 
-            # Replace all empty values with None
+            # 将所有空值替换为None
             original_paper_dict = {
                 k: (v if not pd.isna(v) else None)
                 for k, v in original_paper_dict.items()
@@ -1064,7 +1085,7 @@ class Quicker:
                 str(original_paper_dict.get('Paper_Index'))
                 if original_paper_dict.get('Paper_Index')
                 else None
-            )
+            )  #! 这里有bug，相当于record的paper_index直接赋给了pmid，但是ovid的编号不是pmid
 
             paper_uid = Paper.get_paper_uid(
                 doi=original_paper_dict.get('Digital Object Identifier'),
@@ -1078,7 +1099,7 @@ class Quicker:
             else:
                 year = original_paper_dict.get('Published')
 
-            paper_dict = dict(
+            paper_dict = dict(  #! 后续把已知的Pubilication Type加入
                 title=original_paper_dict.get('Title'),
                 paper_uid=paper_uid,
                 pmid=pmid,
@@ -1134,11 +1155,13 @@ class Quicker:
             )
 
         # assess evidence
+        # 确定阶段与状态匹配
         assert (
             self.quicker_data.is_stage(QuickerStage.EVIDENCE_ASSESSMENT)
             and self.quicker_data.check_stage_state() == StageState.NOT_STARTED
         ), f"Invalid stage {self.quicker_data.stage} or stage state {self.quicker_data.stage_state}"
 
+        # 生成evidence对象
         evidence = Evidence(
             pico_idx=self.quicker_data.pico_idx,
             disease=self.quicker_data.disease,
@@ -1156,6 +1179,7 @@ class Quicker:
             annotation=self.quicker_data.annotation,
         )
 
+        # 评估evidence
         logging.info("Assess evidence")
         evidence.assess_evidence()
 
@@ -1215,7 +1239,7 @@ class Quicker:
                 "outcomeinfo",
                 self._formatted_outcomeinfo_json_name(current_pico_idx),
             )
-
+            # 判断文件是否存在
             if not os.path.exists(outcomeinfo_json_path):
                 raise FileNotFoundError(
                     f"Outcome info JSON file {outcomeinfo_json_path} does not exist"
@@ -1292,7 +1316,7 @@ class Quicker:
                 "paperinfo",
                 self._formatted_paperinfo_json_name(current_pico_idx=current_pico_idx),
             )
-
+            # 判断文件是否存在
             if not os.path.exists(paperinfo_json_path):
                 raise FileNotFoundError(
                     f"Paper info JSON file {paperinfo_json_path} does not exist"
@@ -1405,7 +1429,7 @@ class Quicker:
             ):  # list
                 assessed_outcome_list = self.assess_evidence(comparator=comparator)
                 total_evidence_assessment_results.append(assessed_outcome_list)
-
+                # todo 这里还应该有个总的certainty assessment, 然后最后做成字典
             self.quicker_data.update_data(
                 dict(evidence_assessment_results=total_evidence_assessment_results)
             )

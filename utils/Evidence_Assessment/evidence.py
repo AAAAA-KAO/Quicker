@@ -19,7 +19,7 @@ class Evidence:
     def __init__(
         self,
         pico_idx: str,
-        disease: str,  # disease/topic
+        disease: str,  #! 之后改叫topic吧
         clinical_question: str,
         intervention: str,
         comparator: str,
@@ -113,13 +113,13 @@ class Evidence:
 
     def assess_outcome(self, outcome: Outcome):
         '''
-        Assess single outcome, and get the final assessment result based on study design
+        评估单个outcome，根据相关paper的研究设计，进行不同的评估，最后融合出该outcome的综合评估结果
         '''
         # get the papers related to this outcome
         related_paper = [
             p
             for p in self.paper_list
-            if p.paper_uid in outcome.related_paper_list
+            if p.paper_uid in outcome.related_paper_list  # 在这已经选出了关联的paper
         ]
         logging.info(
             f'Found {len(related_paper)} related papers for outcome {outcome.outcome_uid}'
@@ -138,7 +138,7 @@ class Evidence:
                         embeddings=self.embeddings,
                         model=self.model,
                         disease=self.disease,
-                        method='RAG',  
+                        method='RAG',  #! 这里应该是一个参数
                     )
                 )
             if paper.study_design not in study_design_group:
@@ -161,7 +161,7 @@ class Evidence:
         model,
         disease: str,
         method: str = 'RAG',
-        given_option: dict = {},  
+        given_option: dict = {},  #! 提供给定component的选项，便于控制答案
         reupdate_component_list: list = [],
     ) -> dict:
         '''
@@ -229,8 +229,9 @@ class Evidence:
             logging.info(f"Paper id: {paper.paper_uid} | Analyze characteristic by RAG")
 
             # find the PICO elements in the paper
+            top_k = os.getenv('TOP_K', 5)
             pico_retriever = vectorstore.as_retriever(
-                search_type="similarity", search_kwargs={"k": 5}
+                search_type="similarity", search_kwargs={"k": int(top_k)}
             )
 
             from utils.Evidence_Assessment.rag import extract_pico_from_paper
@@ -329,8 +330,7 @@ class Evidence:
 
     def assess_evidence(self):
         '''
-
-        Assess all the outcomes and form a comprehensive assessment result
+        评估所有的outcome，形成综合所有outcome的评估结果
         '''
         # assess all the outcomes one by one
         logging.info('Starting to assess the whole evidence')
@@ -343,6 +343,6 @@ class Evidence:
         # )
 
         # _ = outcome_assessment_chain.batch(self.outcome_list)
+        # todo: overall certainty assessment
 
-
-
+        pass

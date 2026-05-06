@@ -21,10 +21,12 @@ from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 
+
+from utils.Evidence_Assessment.download import download_pdf_by_paperbot
 from utils.Evidence_Assessment.PDFprocessing import CustomizedGrobidParser
 
 
-class StudyDesign(str, Enum):
+class StudyDesign(str, Enum):  # 枚举类
     SYSTEMATIC_REVIEW = "Systematic Review"
     META_ANALYSIS = "Meta-Analysis"
     RANDOMIZED_CONTROLLED_TRIAL = "Randomized Controlled Trial"
@@ -47,7 +49,7 @@ class Paper:
         pmid: str = None,
         authors: str = None,
         year: str = None,
-        abstract: str = None,
+        abstract: str = None,  #! 历史遗留问题
         url: str = None,
         doi: str = None,
         journal: str = None,
@@ -195,14 +197,69 @@ class Paper:
     def vectorstore_save_path(self) -> str:
         return os.path.join(self.save_folder_path, f"{self.paper_uid}_vector_database")
 
-    def download_pdf(self, current_save_folder: str) -> str:
-        raise NotImplementedError(
-            "This method is not implemented. Please implement it according to your organization account or other resources."
-        )
+    def download_pdf(self, current_save_folder) -> str | None:
+        '''
+        Download a PDF from a URL and save it to a file.
+        '''
+        import pandas as pd
+
+        self._update_info(
+            save_folder_path=os.path.join(current_save_folder, self.paper_uid)
+        )  # final folder name is paper_uid)
+        if not os.path.exists(self.save_folder_path):
+            os.makedirs(self.save_folder_path)
+
+        # check version of PyPaperBot
+        try:
+            print("PyPaperBot v" + paperbot_version)
+            response = requests.get('https://pypi.org/pypi/pypaperbot/json')
+            latest_version = response.json()['info']['version']
+            if latest_version != paperbot_version:
+                print(
+                    "NEW VERSION AVAILABLE!\nUpdate with 'pip install PyPaperBot —upgrade' to get the latest features!\n"
+                )
+        except:
+            pass
+
+        # download the PDF file
+
+        kwargs = {}
+        if self.doi:
+            correct_doi = (
+                self.doi.split('doi.org/')[-1] if 'doi.org/' in self.doi else self.doi
+            )
+            kwargs['doi'] = correct_doi
+            kwargs['use_doi_as_filename'] = True
+            logging.info(f"Downloading PDF file by DOI: {self.doi}")
+            res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
+            if res is not None:
+                df = pd.read_csv(os.path.join(res, 'result.csv'))
+                is_downloaded = df['Downloaded'].values[0]
+                if is_downloaded:
+                    return self.pdf_save_path
+                else:
+                    raise ValueError("No downloadable PDF file found.")
+            else:
+                raise ValueError("Parameter error.")
+        if self.title:
+            kwargs['query'] = self.title
+            logging.info(f"Downloading PDF file by title: {self.title}")
+            res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
+            if res is not None:
+                df = pd.read_csv(os.path.join(res, 'result.csv'))
+                is_downloaded = df['Downloaded'].values[0]
+                if is_downloaded:
+                    return self.pdf_save_path
+                else:
+                    raise ValueError("No downloadable PDF file found.")
+            else:
+                raise ValueError("Parameter error.")
+
+        return self.pdf_save_path
 
     def get_pdf(self, current_save_folder: str) -> str:
         '''
-        Get the PDF file of the paper. .
+        Get the PDF file of the paper. If the PDF file already exists, return the path of the PDF file. If the PDF file does not exist, download the PDF file and return the path of the PDF file.
 
         Args:
             current_save_folder: str, the path to the folder where the PDF file is saved.
@@ -251,7 +308,7 @@ class Paper:
         )
         loader = GenericLoader.from_filesystem(
             pdf_file,
-            glob="*.pdf",  #! only support pdf files, if you want to support other files, please modify the code
+            glob="*.pdf",  #! 限制文件类型, 仅支持pdf
             suffixes=[".pdf"],
             parser=parser,
         )
@@ -308,7 +365,9 @@ class Paper:
 
         logging.getLogger("pdfminer").setLevel(logging.WARNING)
         logging.getLogger("unstructured.trace").setLevel(logging.WARNING)
+        os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
+        # 匹配pdf_file路径下的所有pdf文件
         pdfs = glob.glob(os.path.join(pdf_file, "*.pdf"))
 
         loader = UnstructuredLoader(
@@ -459,7 +518,7 @@ if __name__ == '__main__':
     )
     with open(json_path, 'r', encoding='utf-8') as f:
         paper_list = json.load(f)
-
+    # 从字典创建Paper对象
     paper = Paper.from_dict(paper_list[0])
     print(paper)
 

@@ -5,7 +5,7 @@ from enum import Enum
 from utils.Evidence_Assessment.paper import Paper
 
 
-class OutcomeState(str, Enum):
+class OutcomeState(str, Enum):  # 枚举类
     NOT_ASSESSED = "Not Assessed"
     ASSESSED = "Assessed"
     NOT_APPLICABLE = "Not Applicable"
@@ -48,7 +48,7 @@ class Outcome:
         self.comparator = comparator
         self.related_paper_list = (
             related_paper_list or []
-        )  
+        )  # 如果为 None，则初始化为空列表
         self.assessment_results = (
             assessment_results or {}
         )  # {assessment_name: assessment_result} assessment_name: str= GRADE, ROBINS-I, etc. assessment_result: dict= {sub_assessment_name: str, sub_assessment_result: dict}
@@ -92,7 +92,7 @@ class Outcome:
     def get_outcome_uid(comparison: str, outcome: str, study_design: str) -> str:
         unique_string = (
             comparison + outcome + study_design
-        )  
+        )  #! 这个study_design是原先设计的不足
         outcome_uid = hashlib.sha256(unique_string.encode('utf-8')).hexdigest()[:8]
         return outcome_uid
 
@@ -115,4 +115,11 @@ class Outcome:
 
         self.is_changed = True
 
- 
+    # def  (self):  #! todo
+    #     for assessment, result in self.assessment_results.items():
+    #         if result['result_content'] is None:
+    #             result['result_state'] = OutcomeState.NOT_ASSESSED
+    #         elif result['result_content'] == "Not Applicable":
+    #             result['result_state'] = OutcomeState.NOT_APPLICABLE
+    #         else:
+    #             result['result_state'] = OutcomeState.ASSESSED

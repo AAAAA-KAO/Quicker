@@ -332,7 +332,7 @@ def assess_risk_of_bias_for_rcts(
                 }
             )
             | rct_limitations_prompttemplate
-        )  # Combine all questions and answers
+        )  # 这里是要把所有问题及其答案都融合起来
     elif additional_requirements_for_GRADE_rob_rcts.get('method') == 'baseline':
         all_questions_rag_chain = (
             RunnableParallel(
@@ -512,6 +512,7 @@ def extract_data_for_GRADE(
     elif data_type == 'corresponding':
         raise NotImplementedError
 
+    #! 这里只是沿用了all的名称，但是实际上只有一个问题。后续可以考虑对问题做自动化修改（大模型生成更精确的问题）
     all_questions_rag_chain = (
         RunnableParallel(
             {
@@ -619,7 +620,7 @@ def extract_data_for_paper(
             intervention=outcome.intervention,
             comparator=outcome.comparator,
             outcome=outcome.outcome,
-            mode=data_type,
+            mode=data_type,  #! 暂时这么做
         )
         cell_data_extraction_chain = RunnableLambda(
             lambda x: {
@@ -645,7 +646,7 @@ def extract_data_for_paper(
             intervention=outcome.intervention,
             comparator=outcome.comparator,
             outcome=outcome.outcome,
-            mode='Dichotomous Data',  #! Temporary solution
+            mode='Dichotomous Data',  #! 暂时这么做
         )
         cell_data_extraction_chain = RunnableLambda(
             lambda x: {
@@ -688,7 +689,7 @@ def choose_data_type_of_outcome(outcome: Outcome, model, disease: str) -> str:
 
     def validate_outcome_data_type(data_type_answer: str) -> str:
 
-        # Extract the text between the tags <option> and </option>
+        # 提取data_type_answer中tag<option>和tag</option>之间的文本
         import re
 
         data_type = re.search(r'<option>(.*?)</option>', data_type_answer).group(1)
@@ -858,25 +859,52 @@ def extract_cell_data(
         for cell_data in cell_data_list:
             data_list.extend(cell_data.model_dump()['extracted_data'])
             text_list.extend(cell_data.model_dump()['original_text_content'])
-
+        # 统计data，按照最多数来决定最终结果
+        # # TODO 后续理论上应该判断是否是三个不同的结果，如果是则应该返回一个错误
+        # extracted_data = max(set(data_list), key=data_list.count)
 
         data_list = list(set(data_list))
         text_list = list(set(text_list))
 
         data_dict = {'extracted_data': data_list, 'original_text_content': text_list}
-
+        # for cell_data in cell_data_list:
+        #     if cell_data.model_dump()['extracted_data'] == extracted_data:
+        #         data_dict['original_text_content'] += cell_data.model_dump()[
+        #             'original_text_content'
+        #         ]
 
         return data_dict
 
+        # original_text_content = []
+        # for cell_data in cell_data_list:
+        #     original_text_content += cell_data.model_dump()['original_text_content']
+
+        # # reduplicate removal
+        # original_text_content = list(set(original_text_content))
+
+        # return original_text_content
 
     cross_validation_chain = RunnableLambda(cross_validation)
 
+    # final_data_extraction_chain = (
+    #     RunnableParallel({'original_text_content': RunnablePassthrough()})
+    #     .assign(context=lambda x: '* ' + '\n* '.join(x['original_text_content']))
+    #     .assign(question=lambda x: final_question)
+    #     .assign(disease=lambda x: disease)
+    #     | DATA_EXTRACTION_FROM_TEXT_PROMPTTEMPLATE
+    #     | model
+    #     | StrOutputParser()
+    #     | RunnableLambda(lambda x: match_data_from_text(x))
+    # ).with_retry(stop_after_attempt=2)
 
     cell_data_extraction_chain = (
         cell_data_query_generation_chain
         | single_question_rag_chain.map()
         | cross_validation_chain
-
+        # | RunnableParallel(
+        #     original_text_content=RunnablePassthrough(),
+        #     extracted_data=RunnablePassthrough() | final_data_extraction_chain,
+        # )
     ).with_retry(stop_after_attempt=2)
 
     data_dict = cell_data_extraction_chain.invoke(cell_question)
@@ -886,7 +914,7 @@ def extract_cell_data(
 
 def retrieve_from_paper_given_question(paper: Paper, question: str, embeddings):
 
-    retriever = paper.get_vector_store(  
+    retriever = paper.get_vector_store(  #! 这个函数输入参数改过了
         embeddings=embeddings
     ).as_retriever(  #! paper's vector store must be loaded before
         search_type="similarity", search_kwargs={"k": RETRIEVAL_AMOUNT}

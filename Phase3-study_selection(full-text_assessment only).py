@@ -27,6 +27,7 @@ def main(args):
     pico_idx = args.pico_idx
     record_screening_method = args.record_screening_method
     exp_num = args.exp_num
+    t = args.t
 
     # 配置日志
     setup_loggers(log_file=os.path.join(os.getenv("LOG_DIR"), YOUR_DATASET_PATH.split('/')[-1], "Study_Selection", f"{pico_idx}.log"))
@@ -91,21 +92,27 @@ def main(args):
     )
 
     wf_logger.info("Run study selection")
-    quicker.execute_current_stage()
-
-    # 保存结果
-    record_screening_method = quicker.config['study_selection']['record_screening_method']
-    results_save_path = os.path.join(
-        YOUR_STUDY_SELECTION_PATH,
-        f'Results/screening_records/{record_screening_method}/{pico_idx}'
+    
+    # 加载record_included_list
+    screening_results_save_path_list = []
+    for i in range(config['study_selection']['exp_num']):
+        record_included_list_path = os.path.join(
+            YOUR_STUDY_SELECTION_PATH,
+            f'Results/screening_records/{record_screening_method}/{pico_idx}/{pico_idx}_exp_{i}-{t}.csv'
+        )
+        screening_results_save_path_list.append(record_included_list_path)
+    
+    record_included_list = quicker.get_full_text_assessment_paper_list(
+        screening_results_save_path_list=screening_results_save_path_list,
+        threshold=config['study_selection']['threshold'],
     )
     
-    if not os.path.exists(results_save_path):
-        os.makedirs(results_save_path, exist_ok=True)
-    
-    quicker.quicker_data.to_json(results_save_path)
-    dt_logger.info(f"Study selection results saved to {results_save_path}")
-    wf_logger.info(f"Study selection completed for {disease} with pico_idx {pico_idx}")
+    record_included_list, full_text_included_list, total_outcome_list = quicker.select_studies_by_full_text_assessment(record_included_list)
+
+    # 保存结果
+    print(record_included_list)
+    print(full_text_included_list)
+    print(total_outcome_list)
 
 
 if __name__ == '__main__':
@@ -123,5 +130,6 @@ if __name__ == '__main__':
     parser.add_argument("--exp_num", type=int, default=10, help="The number of examples to use for few-shot learning")
     parser.add_argument("--inclusion_criteria", type=str, default='', help="The inclusion criteria for study selection")
     parser.add_argument("--exclusion_criteria", type=str, default='', help="The exclusion criteria for study selection")
+    parser.add_argument("--t", type=str, default='2026-05-06-13-51-57', help="time stamp")
     args = parser.parse_args()
     main(args)

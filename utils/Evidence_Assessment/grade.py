@@ -174,6 +174,30 @@ class GRADEAssessment:
             sub_assessment_result=extracted_data_dict,
         )
 
+    # def extract_data(self, data_list: List[str]):
+    #     '''
+    #     Extract data from the papers for the outcome. The extracted data will be stored in the outcome object.
+
+    #     Args:
+    #         data_list: a list of data that need to be extracted. The data include: assumed risk, corresponding risk, relative effect, and absolute effect.
+    #     '''
+    #     # component_list = []
+    #     # # assumed
+    #     # if 'participants number of intervention' in data_list:
+    #     #     logging.info('Extracting number of participants')
+    #     #     component_list.append('intervention')
+
+    #     # if 'participants number of comparator' in data_list:
+    #     #     logging.info('Extracting number of participants')
+    #     #     component_list.append('comparator')
+
+    #     # if component_list:
+    #     #     from langchain_core.runnables import RunnableLambda
+
+    #     #     nop_chain = RunnableLambda(
+    #     #         lambda component: self.extract_nop_data(component)
+    #     #     )
+    #     #     nop_chain.batch(component_list)
 
     def extract_nop_data(self, component):
         sub_assessment_name = f'Participants number of {component}'
@@ -224,6 +248,8 @@ class GRADEAssessment:
         raise NotImplementedError
 
     def assess_overall_quality(self):
+
+        # TODO: assess the overall quality of the evidence
         pass
 
     def run_assessment(self):
@@ -251,6 +277,21 @@ class GRADEAssessment:
             else self.additional_requirements_for_GRADE.get('factor_list')
         )
 
+        # data_list = (
+        #     [
+        #         'participants number of intervention',
+        #         'participants number of comparator',
+        #         'assumed risk',  # The assumed risk; a measure of the typical burden of the outcomes, i.e. illustrative risk or also called baseline risk, baseline score, or control group risk
+        #         'corresponding risk',  # The corresponding risk; a measure of the burden of the outcomes after the intervention is applied, i.e. the risk of an outcome in treated/exposed people based on the relative magnitude of an effect and assumed (baseline) risk. https://gdt.gradepro.org/app/handbook/handbook.html#h.52ccy41iwbon
+        #         'relative effect',
+        #         'absolute effect',
+        #     ]
+        #     if self.additional_requirements_for_GRADE.get('data_list') is None
+        #     else self.additional_requirements_for_GRADE.get('data_list')
+        # )
+
+        # logging.info('Extracting data: ' + ', '.join(data_list))
+        # self.extract_data(data_list)
 
         if self.outcome.assessment_results.get('GRADE', {}).get('data_type') is None:
             data_type = choose_data_type_of_outcome(
@@ -267,7 +308,7 @@ class GRADEAssessment:
             if paper_num <= self.additional_requirements_for_GRADE.get(
                 'study_num_threshold', 1000
             ):
-                logging.info('Extracting raw data')
+                logging.info('Extracting raw data ')
                 self.extract_raw_data()
 
         logging.info('Assessing factors: ' + ', '.join(factor_list))
