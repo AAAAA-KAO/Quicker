@@ -223,7 +223,7 @@ class Paper:
 
         # download the PDF file
 
-        kwargs = {}
+        kwargs = {'single_proxy': 'http://127.0.0.1:17890'}
         if self.doi:
             correct_doi = (
                 self.doi.split('doi.org/')[-1] if 'doi.org/' in self.doi else self.doi
@@ -243,10 +243,13 @@ class Paper:
                 raise ValueError("Parameter error.")
         if self.title:
             kwargs['query'] = self.title
+            # kwargs['scihub_mirror'] = 'https://sci-hub.do'
             logging.info(f"Downloading PDF file by title: {self.title}")
             res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
             if res is not None:
                 df = pd.read_csv(os.path.join(res, 'result.csv'))
+                if len(df) == 0:
+                    raise ValueError("No downloadable PDF file found.")
                 is_downloaded = df['Downloaded'].values[0]
                 if is_downloaded:
                     return self.pdf_save_path

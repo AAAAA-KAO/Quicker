@@ -136,7 +136,7 @@ if __name__ == '__main__':
     parser.add_argument("--YOUR_DATASET_PATH", type=str, default='data/2021ACR RA', help="The dataset path")
     parser.add_argument("--save_base", type=str, default="data/2021ACR RA/Literature_Search/pubmed/Results", help="search results folder")
     parser.add_argument("--disease", type=str, default='Rheumatoid Arthritis (RA)', help="The disease name")
-    parser.add_argument("--pico_idx", type=str, default='ef0e4f95', help="The PICO index of the question decomposition")
+    parser.add_argument("--pico_idx", type=str, default='dff23ac6', help="The PICO index of the question decomposition")
     parser.add_argument("--additional_parameters", type=dict, default={'datetype': 'pdat', 'mindate': '1946', 'maxdate': '2025/03/30'}, help="The additional parameters to PubMedRetrieval")
     parser.add_argument("--filters", type=dict, default={"Just search for RCT":'''<search results> AND ("Randomized controlled trial"[pt] OR "Controlled clinical trial"[pt] OR Randomized[tiab] OR Placebo[tiab] OR "Drug therapy"[sh] OR Randomly[tiab] OR Trial[tiab] OR Groups[tiab])''', 'No review': "<search results> NOT review[pt]"}, help="The search filters to use")
     parser.add_argument("--use_agent", type=bool, default=True, help="Whether to use Agentic method or not")

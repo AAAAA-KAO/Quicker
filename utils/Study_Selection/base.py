@@ -82,8 +82,8 @@ def sample_papers(dataset_name: str, total_num: int = 100):
 
 def get_clinical_question_with_pico(
     clinical_question: str,
-    population: str,
-    intervention: str,
+    population: list,
+    intervention: list,
     comparison: list,
     outcome: dict,
     study: list,
@@ -93,12 +93,12 @@ def get_clinical_question_with_pico(
         clinical_question
         + "\n"
         + 'Deconstruct the question using the PICO model: \n'
-        + "P: ["
-        + population
-        + ']\n'
-        + "I: ["
-        + intervention
-        + ']\n'
+        + "P: "
+        + str(population)
+        + '\n'
+        + "I: "
+        + str(intervention)
+        + '\n'
         + "C: "
         + str(comparison)
         + '\n'

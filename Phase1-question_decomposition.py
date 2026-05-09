@@ -29,7 +29,7 @@ class QuestionDecompositionOutput(BaseModel):
     P: list[str] = Field(description="The population of the question")
     I: list[str] = Field(description="The intervention of the question")
     C: list[str] = Field(description="The comparison of the question")
-    O: list[str] = Field(description="The outcome of the question")
+    O: dict[str, list[str]] = Field(description="The outcome of the question")
 
 
 def main(args):
@@ -124,6 +124,7 @@ if __name__ == '__main__':
     parser.add_argument("--method", type=str, default='zero-shot', help="The method to use")
     parser.add_argument("--dataset_name", type=str, default='2021ACR RA', help="The dataset name")
     parser.add_argument("--clinical_question", type=str, default="Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?", help="The clinical question to decompose")
+                                                                # Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?
     args = parser.parse_args()
 
     main(args)

@@ -118,7 +118,7 @@ if __name__ == '__main__':
     parser.add_argument("--YOUR_EVIDENCE_ASSESSMENT_PATH", type=str, default="data/2021ACR RA/Evidence_Assessment", help="your evidence assessment folder")
     parser.add_argument("--YOUR_PAPER_LIBRARY_PATH", type=str, default='data/2021ACR RA/Paper_Library', help="The paper library path")
     parser.add_argument("--disease", type=str, default='Rheumatoid Arthritis (RA)', help="The disease name")
-    parser.add_argument("--pico_idx", type=str, default='ef0e4f95', help="The PICO index of the question decomposition")
+    parser.add_argument("--pico_idx", type=str, default='dff23ac6', help="The PICO index of the question decomposition")
     parser.add_argument("--record_screening_method", type=str, default='basic', choices=['basic', 'cot'], help="The record screening method to use")
     parser.add_argument("--exp_num", type=int, default=10, help="The number of examples to use for few-shot learning")
     parser.add_argument("--inclusion_criteria", type=str, default='', help="The inclusion criteria for study selection")
