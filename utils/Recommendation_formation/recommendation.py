@@ -56,10 +56,10 @@ class Recommendation:
         importance = outcome['importance']
         study_design = outcome['assessment_results']['GRADE']['Study design']
         no_of_participants = self.get_formatted_participants(
-            outcome['assessment_results']['GRADE']['No of participants']
+            outcome['assessment_results']['GRADE'].get('No of participants', None)
         )
-        effect_dict = outcome['assessment_results']['GRADE']['Effect']
-        certainty = outcome['assessment_results']['GRADE']['Certainty']
+        effect_dict = outcome['assessment_results']['GRADE'].get('Effect', None)
+        certainty = outcome['assessment_results']['GRADE'].get('Certainty', None)
         effect = self.get_formatted_effect(effect_dict)
 
         result_interpretation_chain = (

@@ -2,15 +2,10 @@
     "disease": "Rheumatoid Arthritis (RA)",
     "clinical_question": "Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?",
     "pico_idx": "dff23ac6",
-    "population": [
-        "adults with rheumatoid arthritis (RA) who are on stable conventional synthetic or biologic DMARD therapy and have achieved sustained low disease activity (e.g., DAS28-CRP \u22643.2 for \u22656 months)"
-    ],
-    "intervention": [
-        "gradually taper off DMARDs"
-    ],
+    "population": "Patients with rheumatoid arthritis (RA) who are on Disease-Modifying Anti-Rheumatic Drugs (DMARDs) and in low disease activity",
+    "intervention": "Gradually taper off DMARDs",
     "comparison": [
-        "abruptly withdraw DMARDs",
-        "continue DMARDs at the same doses"
+        "Abruptly withdraw DMARDs or continue DMARDs at the same doses"
     ],
     "study": [
         "randomized clinical trial"

@@ -75,6 +75,7 @@ def main(args):
         population=quickerdata_ls['population'],
         intervention=quickerdata_ls['intervention'],
         comparison=quickerdata_ls['comparison'],
+        outcome=quickerdata_ls['outcome'],
         study=['randomized clinical trial'],
         search_results=quickerdata_ls['search_results'],
     )
@@ -108,6 +109,14 @@ def main(args):
     )
     
     record_included_list, full_text_included_list, total_outcome_list = quicker.select_studies_by_full_text_assessment(record_included_list)
+
+    quicker.quicker_data.update_data(
+        dict(
+            record_included_studies=record_included_list,
+            full_text_included_studies=full_text_included_list,
+            total_outcome_list=total_outcome_list,
+        )
+    )
 
     # 保存结果
     print(record_included_list)

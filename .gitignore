@@ -5,3 +5,6 @@ huggingface_version/
 .env
 log
 config/config.json
+papers/
+data
+vibe_prompts/

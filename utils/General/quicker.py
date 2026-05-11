@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Dict
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
+from langchain_community.embeddings import DashScopeEmbeddings
 
 
 from utils.Evidence_Assessment.outcome import Outcome
@@ -497,6 +498,11 @@ class Quicker:
                 openai_api_key=api_key,
                 base_url=api_base_URL,
             )
+        elif provider == 'DashScope':
+            return DashScopeEmbeddings(
+                model=model_name,
+                dashscope_api_key=api_key,
+            )
         else:
             raise NotImplementedError(f"Provider {provider} is not implemented")
 
@@ -767,7 +773,7 @@ class Quicker:
                     reupdate_component_list=reupdate_component_list,
                 )
             )
-            .with_config(max_concurrency=1)
+            .with_config(max_concurrency=5)
             .with_retry(stop_after_attempt=2)
         )
 

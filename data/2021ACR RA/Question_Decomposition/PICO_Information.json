@@ -2,25 +2,26 @@
     {
         "Index": "dff23ac6",
         "Question": "Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?",
-        "P": [
-            "adults with rheumatoid arthritis (RA) who are on stable conventional synthetic or biologic DMARD therapy and have achieved sustained low disease activity (e.g., DAS28-CRP ≤3.2 for ≥6 months)"
-        ],
-        "I": [
-            "gradually taper off DMARDs"
-        ],
+        "P": "Patients with rheumatoid arthritis (RA) who are on Disease-Modifying Anti-Rheumatic Drugs (DMARDs) and in low disease activity",
+        "I": "Gradually taper off DMARDs",
         "C": [
-            "abruptly withdraw DMARDs",
-            "continue DMARDs at the same doses"
+            "Abruptly withdraw DMARDs or continue DMARDs at the same doses"
         ],
         "O": {
-            "disease flare rate": [
-                "proportion of patients experiencing disease flare within 6 months"
-            ],
-            "sustained low disease activity or remission": [
-                "proportion of patients maintaining low disease activity or remission at 12 months"
-            ],
-            "adverse events": [
-                "incidence of serious infections, malignancy, or cardiovascular events"
+            "Abruptly withdraw DMARDs or continue DMARDs at the same doses": [
+                "Disease activity (follow up: range 9 months to 12 months; assessed with: DAS28-ESR)",
+                "Flare (follow up: range 6 months to 12 months)",
+                "Radiographic progression (follow up: range 9 months to 12 months; assessed with: mTSS)",
+                "Fatigue (follow up: range 9 months to 12 months; assessed with: FACIT-F)",
+                "Quality of Life (follow up: 9 months; assessed with: SF-36 PCS)",
+                "Quality of Life (follow up: 9 months; assessed with: SF-36 MCS)",
+                "Disability (follow up: 12 months; assessed with: HAQ-DI)",
+                "Pain (follow up: 12 months; assessed with: VAS Pain)",
+                "Withdrawal due to lack of efficacy (follow up: 12 months)",
+                "Withdrawal due to adverse events (follow up: range 9 months to 12 months)",
+                "Serious adverse events (follow up: range 9 months to 12 months)",
+                "Malignancy (follow up: range 9 months to 12 months)",
+                "Death (follow up: 12 months)"
             ]
         }
     }

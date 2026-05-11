@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import glob
+import shutil
 from enum import Enum
 import requests
 from typing import List
@@ -205,58 +206,72 @@ class Paper:
 
         self._update_info(
             save_folder_path=os.path.join(current_save_folder, self.paper_uid)
-        )  # final folder name is paper_uid)
+        )
         if not os.path.exists(self.save_folder_path):
             os.makedirs(self.save_folder_path)
 
-        # check version of PyPaperBot
-        try:
-            print("PyPaperBot v" + paperbot_version)
-            response = requests.get('https://pypi.org/pypi/pypaperbot/json')
-            latest_version = response.json()['info']['version']
-            if latest_version != paperbot_version:
-                print(
-                    "NEW VERSION AVAILABLE!\nUpdate with 'pip install PyPaperBot —upgrade' to get the latest features!\n"
-                )
-        except:
-            pass
-
-        # download the PDF file
-
-        kwargs = {'single_proxy': 'http://127.0.0.1:17890'}
-        if self.doi:
-            correct_doi = (
-                self.doi.split('doi.org/')[-1] if 'doi.org/' in self.doi else self.doi
-            )
-            kwargs['doi'] = correct_doi
-            kwargs['use_doi_as_filename'] = True
-            logging.info(f"Downloading PDF file by DOI: {self.doi}")
-            res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
-            if res is not None:
-                df = pd.read_csv(os.path.join(res, 'result.csv'))
-                is_downloaded = df['Downloaded'].values[0]
-                if is_downloaded:
-                    return self.pdf_save_path
-                else:
-                    raise ValueError("No downloadable PDF file found.")
+        paper_source_dir = "papers/PICOdff23ac6/" + self.paper_uid
+        
+        # 查找 paper_source_dir 下的 pdf 文件
+        if os.path.isdir(paper_source_dir):
+            pdf_files = glob.glob(os.path.join(paper_source_dir, "*.pdf"))
+            if pdf_files:
+                # 复制 pdf 文件到 self.save_folder_path
+                import shutil
+                src_pdf = pdf_files[0]
+                dst_pdf = os.path.join(self.save_folder_path, os.path.basename(src_pdf))
+                shutil.copy2(src_pdf, dst_pdf)
             else:
-                raise ValueError("Parameter error.")
-        if self.title:
-            kwargs['query'] = self.title
-            # kwargs['scihub_mirror'] = 'https://sci-hub.do'
-            logging.info(f"Downloading PDF file by title: {self.title}")
-            res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
-            if res is not None:
-                df = pd.read_csv(os.path.join(res, 'result.csv'))
-                if len(df) == 0:
-                    raise ValueError("No downloadable PDF file found.")
-                is_downloaded = df['Downloaded'].values[0]
-                if is_downloaded:
-                    return self.pdf_save_path
-                else:
-                    raise ValueError("No downloadable PDF file found.")
-            else:
-                raise ValueError("Parameter error.")
+                raise ValueError(f"No Downloadable PDF file")
+        
+        # # check version of PyPaperBot
+        # try:
+        #     print("PyPaperBot v" + paperbot_version)
+        #     response = requests.get('https://pypi.org/pypi/pypaperbot/json')
+        #     latest_version = response.json()['info']['version']
+        #     if latest_version != paperbot_version:
+        #         print(
+        #             "NEW VERSION AVAILABLE!\nUpdate with 'pip install PyPaperBot —upgrade' to get the latest features!\n"
+        #         )
+        # except:
+        #     pass
+
+        # # download the PDF file
+
+        # kwargs = {'single_proxy': 'http://127.0.0.1:17890'}
+        # if self.doi:
+        #     correct_doi = (
+        #         self.doi.split('doi.org/')[-1] if 'doi.org/' in self.doi else self.doi
+        #     )
+        #     kwargs['doi'] = correct_doi
+        #     kwargs['use_doi_as_filename'] = True
+        #     logging.info(f"Downloading PDF file by DOI: {self.doi}")
+        #     res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
+        #     if res is not None:
+        #         df = pd.read_csv(os.path.join(res, 'result.csv'))
+        #         is_downloaded = df['Downloaded'].values[0]
+        #         if is_downloaded:
+        #             return self.pdf_save_path
+        #         else:
+        #             raise ValueError("No downloadable PDF file found.")
+        #     else:
+        #         raise ValueError("Parameter error.")
+        # if self.title:
+        #     kwargs['query'] = self.title
+        #     # kwargs['scihub_mirror'] = 'https://sci-hub.do'
+        #     logging.info(f"Downloading PDF file by title: {self.title}")
+        #     res = download_pdf_by_paperbot(dwn_dir=self.save_folder_path, **kwargs)
+        #     if res is not None:
+        #         df = pd.read_csv(os.path.join(res, 'result.csv'))
+        #         if len(df) == 0:
+        #             raise ValueError("No downloadable PDF file found.")
+        #         is_downloaded = df['Downloaded'].values[0]
+        #         if is_downloaded:
+        #             return self.pdf_save_path
+        #         else:
+        #             raise ValueError("No downloadable PDF file found.")
+        #     else:
+        #         raise ValueError("Parameter error.")
 
         return self.pdf_save_path
 
@@ -284,7 +299,6 @@ class Paper:
                 logging.info(f"{str(self)} PDF file already exists: {pdf_files[0]}")
                 return pdf_files[0]
 
-        # download the PDF file
         pdf_path = self.download_pdf(current_save_folder)
         if pdf_path is not None:
 
@@ -470,8 +484,8 @@ class Paper:
                 client.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(
-                        size=1536, distance=Distance.COSINE
-                    ),  #! 1536 is the size of the embeddings. Attention to change it if the embeddings size changes
+                        size=1024, distance=Distance.COSINE
+                    ),  #! 1024 is the size of the embeddings. Attention to change it if the embeddings size changes
                 )
             vector_store = QdrantVectorStore(
                 client=client,
@@ -481,9 +495,13 @@ class Paper:
 
             uuids = [str(uuid4()) for _ in range(len(all_splits))]
 
-            ids = vector_store.add_documents(documents=all_splits, ids=uuids)
-            if not ids:
-                raise ValueError("Document IDs are empty.")
+            batch_size = 10
+            for i in range(0, len(all_splits), batch_size):
+                batch = all_splits[i:i+batch_size]
+                batch_uuid = uuids[i:i+batch_size]
+                ids = vector_store.add_documents(documents=batch, ids=batch_uuid)
+                if not ids:
+                    raise ValueError("Document IDs are empty.")
             self.vector_store = vector_store
         else:
             if getattr(self, "vector_store", None) is None:
