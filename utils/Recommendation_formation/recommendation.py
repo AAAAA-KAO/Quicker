@@ -123,28 +123,31 @@ class Recommendation:
         outcome_name = outcome['outcome']
         study_number = len(outcome['related_paper_list'])
 
-        study_design = outcome['assessment_results']['GRADE']['Study design']
+        grade_result = outcome['assessment_results']['GRADE']
+        study_design = grade_result['Study design']
         if (
             study_design == 'Randomized Controlled Trial'
             or study_design == 'Observational Study'
             or study_design == "RANDOMIZED_CONTROLLED_TRIAL"
         ):
-            importance = 'Importance: ' + outcome['importance']
+            importance = 'Importance: ' + str(
+                outcome.get('importance', 'Not reported')
+            )
             no_of_participants = (
                 'Number of participants: \n'
                 + self.get_formatted_participants(
-                    outcome['assessment_results']['GRADE']['No of participants']
+                    grade_result.get('No of participants')
                 )
             )
             certainty = (
                 'The certainty of the evidence: '
-                + outcome['assessment_results']['GRADE']['Certainty']
+                + str(grade_result.get('Certainty', 'Not reported'))
             )
-            effect_dict = outcome['assessment_results']['GRADE']['Effect']
+            effect_dict = grade_result.get('Effect')
             effect = 'Effect: \n' + self.get_formatted_effect(effect_dict)
-            result_interpretation = outcome['assessment_results']['GRADE'][
-                'result_interpretation'
-            ]
+            result_interpretation = grade_result.get(
+                'result_interpretation', 'Not reported'
+            )
             return OUTCOME_INFORMATION_TEMPLATE.format(
                 outcome=outcome_name,
                 study_number=study_number,
@@ -160,9 +163,9 @@ class Recommendation:
             no_of_participants = ''
             certainty = ''
             effect = ''
-            result_interpretation = outcome['assessment_results']['GRADE'][
-                'result_interpretation'
-            ]
+            result_interpretation = grade_result.get(
+                'result_interpretation', 'Not reported'
+            )
             return OUTCOME_INFORMATION_TEMPLATE.format(
                 outcome=outcome_name,
                 study_number=study_number,
@@ -177,12 +180,20 @@ class Recommendation:
             raise NotImplementedError
 
     def get_formatted_effect(self, effect_dict: dict) -> str:
+        if not effect_dict:
+            return "Not reported\n"
+        if not hasattr(effect_dict, "keys"):
+            return f"{effect_dict}\n"
         effect = ""
         for key in effect_dict.keys():
             effect += f"{key}: {effect_dict[key]}\n"
         return effect
 
     def get_formatted_participants(self, no_of_participants: dict) -> str:
+        if not no_of_participants:
+            return "Not reported\n"
+        if not hasattr(no_of_participants, "keys"):
+            return f"{no_of_participants}\n"
         formatted_participants = ""
         for key in no_of_participants.keys():
             formatted_participants += f"{key}: {no_of_participants[key]}\n"
