@@ -1,0 +1,163 @@
+{
+    "logging": {
+        "log_dir": "log",
+        "log_file_name": "main_pipeline.log"
+    },
+    "model": {
+        "question_decomposition_model": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
+        },
+        "literature_search_model": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
+        },
+        "study_selection_model": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
+        },
+        "evidence_assessment_model": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
+        },
+        "recommendation_formation_model": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL",
+            "temperature": 1.0
+        },
+        "embeddings": {
+            "provider": "OpenAI",
+            "model_name": "YOUR_EMBEDDING_MODEL_NAME",
+            "API_KEY": "YOUR_API_KEY",
+            "BASE_URL": "YOUR_BASE_URL"
+        }
+    },
+    "pipeline": {
+        "dataset_name": "YOUR_DATASET_NAME",
+        "dataset_path": "data/YOUR_DATASET_NAME",
+        "disease": "YOUR_DISEASE_OR_TOPIC",
+        "clinical_question": "YOUR_CLINICAL_QUESTION",
+        "pico_idx": "auto",
+        "paths": {
+            "dataset": "data/YOUR_DATASET_NAME",
+            "question_decomposition": "data/YOUR_DATASET_NAME/Question_Decomposition",
+            "literature_search": "data/YOUR_DATASET_NAME/Literature_Search",
+            "study_selection": "data/YOUR_DATASET_NAME/Study_Selection",
+            "evidence_assessment": "data/YOUR_DATASET_NAME/Evidence_Assessment",
+            "paper_library": "data/YOUR_DATASET_NAME/Paper_Library",
+            "recommendation_formation": "data/YOUR_DATASET_NAME/Recommendation_Formation",
+            "reports": "reports"
+        },
+        "pdf_handling": {
+            "stop_when_missing_pdf": true,
+            "missing_pdf_json": "missing_pdfs_{stage}_PICO{pico_idx}.json",
+            "missing_pdf_markdown": "missing_pdfs_{stage}_PICO{pico_idx}.md"
+        },
+        "stages": {
+            "phase1_question_decomposition": true,
+            "phase2_literature_search": true,
+            "phase3_study_selection": true,
+            "phase4_evidence_assessment": true,
+            "phase4_meta_analysis": false,
+            "phase5_recommendation_formulation": true
+        },
+        "phase1_question_decomposition": {
+            "method": "zero-shot",
+            "reuse_existing_pico": true
+        },
+        "phase2_literature_search": {
+            "search_backend": "pubmed",
+            "reuse_existing_quicker_data": true,
+            "use_agent": true,
+            "round_limit": 3,
+            "search_terms": null,
+            "additional_parameters": {
+                "datetype": "pdat",
+                "mindate": "1946",
+                "maxdate": "2025/03/30"
+            },
+            "filters": {
+                "Just search for RCT": "<search results> AND (\"Randomized controlled trial\"[pt] OR \"Controlled clinical trial\"[pt] OR Randomized[tiab] OR Placebo[tiab] OR \"Drug therapy\"[sh] OR Randomly[tiab] OR Trial[tiab] OR Groups[tiab])",
+                "No review": "<search results> NOT review[pt]"
+            },
+            "invalid_publication_types": [
+                "Comment",
+                "Editorial",
+                "Case Reports",
+                "News",
+                "Interview",
+                "Published Erratum",
+                "Observational Study",
+                "Autobiography",
+                "Address",
+                "Meta-Analysis",
+                "Retracted Publication"
+            ]
+        },
+        "phase3_study_selection": {
+            "reuse_existing_outputs": true,
+            "study": [
+                "randomized clinical trial"
+            ],
+            "inclusion_criteria": "",
+            "exclusion_criteria": ""
+        },
+        "phase4_evidence_assessment": {
+            "reuse_existing_outputs": true,
+            "transfer_study_selection_files": true,
+            "require_assessed_outputs_for_skip": true,
+            "input_comparator_postfix_map": {},
+            "output_comparator_postfix_map": null,
+            "annotation": {}
+        },
+        "phase4_meta_analysis": {
+            "enabled": false,
+            "skip_when_dependency_missing": true,
+            "binary_outcomes": [],
+            "continuous_outcomes": []
+        },
+        "phase5_recommendation_formulation": {
+            "reuse_existing_result": false,
+            "transfer_evidence_assessment_files": true,
+            "require_assessed_evidence": true,
+            "overall_certainty": "LOW",
+            "supplementary_information": ""
+        }
+    },
+    "study_selection": {
+        "record_screening_method": "basic",
+        "full_text_assessment_method": "RAG",
+        "exp_num": 3,
+        "threshold": 2
+    },
+    "evidence_assessment": {
+        "additional_requirements": {
+            "design_to_be_assessed": [
+                "RANDOMIZED_CONTROLLED_TRIAL"
+            ],
+            "GRADE": {
+                "rob_rcts": {
+                    "method": "quicker"
+                },
+                "factor_list": [
+                    "risk of bias"
+                ],
+                "extract_raw_data": true
+            }
+        }
+    }
+}

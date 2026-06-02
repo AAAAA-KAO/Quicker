@@ -24,5 +24,17 @@
                 "Death (follow up: 12 months)"
             ]
         }
+    },
+    {
+        "Index": "95e1cd65",
+        "Question": "Should patients with MTX-naïve and non-MTX csDMARDs naïve RA and low disease activity receive MTX monotherapy or an alternative csDMARD monotherapy?",
+        "P": "adults with rheumatoid arthritis meeting ACR/EULAR 2010 classification criteria",
+        "I": "methotrexate (MTX) monotherapy",
+        "C": [
+            "MTX-naïve and non-MTX csDMARDs naïve RA patients with low disease activity"
+        ],
+        "O": {
+            "disease activity (e.g., DAS28-CRP, CDAI, SDAI), radiographic progression, functional status (HAQ-DI), treatment persistence, adverse events (e.g., hepatotoxicity, gastrointestinal intolerance, cytopenias) at 6 and 12 months.": []
+        }
     }
 ]

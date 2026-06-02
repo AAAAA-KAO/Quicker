@@ -1,0 +1,23 @@
+{
+    "stage": "phase3_study_selection",
+    "pico_idx": "95e1cd65",
+    "missing_pdf_count": 2,
+    "missing_pdfs": [
+        {
+            "paper_uid": "9c0b31a4",
+            "title": "Effectiveness of maintenance therapy with methotrexate compared with leflunomide for patients with RA having achieved disease control with both these drugs: results of a predefined sub-analysis of CareRA, a pragmatic RCT.",
+            "pmid": "32166429",
+            "doi": "10.1007/s10067-020-05008-4",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICO95e1cd65/9c0b31a4/9c0b31a4.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICO95e1cd65/9c0b31a4"
+        },
+        {
+            "paper_uid": "0f6d16c6",
+            "title": "The SMILE study: Study of long-term methotrexate and iguratimod combination therapy in early rheumatoid arthritis.",
+            "pmid": "39056160",
+            "doi": "10.1097/CM9.0000000000003200",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICO95e1cd65/0f6d16c6/0f6d16c6.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICO95e1cd65/0f6d16c6"
+        }
+    ]
+}
