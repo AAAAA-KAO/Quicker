@@ -156,7 +156,16 @@ class PubMedRetrieval:
             + '<final conclusion>YES</final conclusion>'
         )
 
-        response = professional_medical_librarian.step(usr_msg)
+        try:
+            response = professional_medical_librarian.step(usr_msg)
+        except Exception as exc:
+            logging.warning(
+                "Failed to judge whether %s should be included in the search "
+                "strategy; defaulting to False. Error: %s",
+                component,
+                exc,
+            )
+            return False
 
         final_conclusion = match_tags(
             tag='final conclusion', msg_content=response.msgs[0].content

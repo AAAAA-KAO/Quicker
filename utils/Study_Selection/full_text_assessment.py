@@ -45,9 +45,6 @@ def assess_full_text_for_study_selection(
 
     logging.info(f"Run full text assessment using method: {method}")
     try:
-        outcome_option = []
-        for _, v in outcome.items():
-            outcome_option.append(v)
         paper.update_study_design_and_characteristics(
             **Evidence.analyze_paper(
                 paper=paper,
@@ -59,7 +56,7 @@ def assess_full_text_for_study_selection(
                     'population': population,
                     'intervention': intervention,
                     'comparator': comparison,
-                    'outcome': outcome_option,
+                    'outcome': outcome,
                 },
                 reupdate_component_list=reupdate_component_list,
             )
@@ -69,6 +66,6 @@ def assess_full_text_for_study_selection(
         return paper
     except Exception as e:
         logging.error(f"An error occur in paper {paper_dict['paper_uid']}")
-        logging.error('Error: ' + str(e))
+        logging.exception('Error: ' + str(e))
 
         return paper

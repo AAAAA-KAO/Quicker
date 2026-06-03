@@ -8,3 +8,4 @@ config/config.json
 papers/
 data
 vibe_prompts/
+.DS_Store

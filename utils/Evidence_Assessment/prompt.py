@@ -473,11 +473,14 @@ CONTEXT_TEMPLATE = (
 
 
 def format_docs(docs):
-    context = f"Paper Title: {docs[0].metadata['paper_title']}\n\n"
+    if not docs:
+        return "No relevant content was retrieved from the paper.\n\n"
+
+    context = f"Paper Title: {docs[0].metadata.get('paper_title', 'Unknown paper')}\n\n"
     for i, doc in enumerate(docs):
         context += CONTEXT_TEMPLATE.format(
             index=i + 1,
-            section_title=doc.metadata['section_title'],
+            section_title=doc.metadata.get('section_title', 'Unknown section'),
             page_content=doc.page_content,
         )
 

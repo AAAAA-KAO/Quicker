@@ -215,7 +215,8 @@ class Evidence:
             )
             component_list = ['population', 'intervention', 'comparator', 'outcome']
             if reupdate_component_list:
-                characteristics.update(paper.characteristics)
+                if paper.characteristics:
+                    characteristics.update(paper.characteristics)
                 component_list = reupdate_component_list
 
             if study_design == StudyDesign.NOT_APPLICABLE:
@@ -237,6 +238,19 @@ class Evidence:
             from utils.Evidence_Assessment.rag import extract_pico_from_paper
             from langchain_core.runnables import RunnableLambda
 
+            def flatten_outcome_options(outcome_options):
+                if isinstance(outcome_options, str):
+                    return [outcome_options]
+                if isinstance(outcome_options, list):
+                    flattened = []
+                    for option in outcome_options:
+                        flattened.extend(flatten_outcome_options(option))
+                    return flattened
+                return []
+
+            pre_outcome_component_list = [
+                component for component in component_list if component != 'outcome'
+            ]
             extracted_component_list = RunnableLambda(
                 lambda component: extract_pico_from_paper(
                     component=component,
@@ -246,10 +260,45 @@ class Evidence:
                     model=model,
                     abstract=paper.abstract,
                 )
-            ).batch(component_list)
+            ).batch(pre_outcome_component_list)
 
             for component in extracted_component_list:
                 characteristics.update(component)
+
+            if 'outcome' in component_list:
+                outcome_given_option = dict(given_option)
+                outcome_options = outcome_given_option.get('outcome')
+                if isinstance(outcome_options, dict):
+                    matched_comparators = (
+                        characteristics.get('comparator', {}).get('comparator', [])
+                    )
+                    if isinstance(matched_comparators, str):
+                        matched_comparators = [matched_comparators]
+
+                    filtered_outcomes = []
+                    for comparator in matched_comparators:
+                        if comparator in outcome_options:
+                            filtered_outcomes.extend(
+                                flatten_outcome_options(outcome_options[comparator])
+                            )
+
+                    if not filtered_outcomes:
+                        filtered_outcomes = flatten_outcome_options(
+                            list(outcome_options.values())
+                        )
+
+                    outcome_given_option['outcome'] = filtered_outcomes
+
+                characteristics.update(
+                    extract_pico_from_paper(
+                        component='outcome',
+                        given_option=outcome_given_option,
+                        disease=disease,
+                        pico_retriever=pico_retriever,
+                        model=model,
+                        abstract=paper.abstract,
+                    )
+                )
 
             logging.info(
                 f"Paper id: {paper.paper_uid} |   Extracted characteristics: {characteristics}"

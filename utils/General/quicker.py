@@ -493,10 +493,12 @@ class Quicker:
         api_key = self.model_config['embeddings']['API_KEY']
         api_base_URL = self.model_config['embeddings']['BASE_URL']
         if provider == 'OpenAI':
+            embedding_kwargs = self.model_config['embeddings'].get('kwargs', {})
             return OpenAIEmbeddings(
                 model=model_name,
                 openai_api_key=api_key,
                 base_url=api_base_URL,
+                **embedding_kwargs,
             )
         elif provider == 'DashScope':
             return DashScopeEmbeddings(

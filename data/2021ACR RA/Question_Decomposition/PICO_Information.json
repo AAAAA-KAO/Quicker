@@ -1,40 +1,16 @@
 [
     {
-        "Index": "dff23ac6",
-        "Question": "Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?",
-        "P": "Patients with rheumatoid arthritis (RA) who are on Disease-Modifying Anti-Rheumatic Drugs (DMARDs) and in low disease activity",
-        "I": "Gradually taper off DMARDs",
+        "Index": "3a04b968",
+        "Question": "Should patients with MTX-naïve and non-MTX csDMARDs exposed RA and moderate to high disease activity receive MTX monotherapy or boDMARD monotherapy or tsDMARD monotherapy?",
+        "P": "Adults with rheumatoid arthritis who are methotrexate (MTX)-naïve and have not been previously exposed to conventional synthetic DMARDs (csDMARDs), with moderate to high disease activity (e.g., DAS28-CRP ≥3.2 or CDAI >10)",
+        "I": "Methotrexate (MTX) monotherapy",
         "C": [
-            "Abruptly withdraw DMARDs or continue DMARDs at the same doses"
+            "Biologic DMARD (boDMARD) monotherapy or targeted synthetic DMARD (tsDMARD) monotherapy"
         ],
         "O": {
-            "Abruptly withdraw DMARDs or continue DMARDs at the same doses": [
-                "Disease activity (follow up: range 9 months to 12 months; assessed with: DAS28-ESR)",
-                "Flare (follow up: range 6 months to 12 months)",
-                "Radiographic progression (follow up: range 9 months to 12 months; assessed with: mTSS)",
-                "Fatigue (follow up: range 9 months to 12 months; assessed with: FACIT-F)",
-                "Quality of Life (follow up: 9 months; assessed with: SF-36 PCS)",
-                "Quality of Life (follow up: 9 months; assessed with: SF-36 MCS)",
-                "Disability (follow up: 12 months; assessed with: HAQ-DI)",
-                "Pain (follow up: 12 months; assessed with: VAS Pain)",
-                "Withdrawal due to lack of efficacy (follow up: 12 months)",
-                "Withdrawal due to adverse events (follow up: range 9 months to 12 months)",
-                "Serious adverse events (follow up: range 9 months to 12 months)",
-                "Malignancy (follow up: range 9 months to 12 months)",
-                "Death (follow up: 12 months)"
+            "Biologic DMARD (boDMARD) monotherapy or targeted synthetic DMARD (tsDMARD) monotherapy": [
+                "Achievement of low disease activity or remission at 6 months, safety (e.g., serious adverse events, treatment discontinuation due to adverse events), and radiographic progression (e.g., change in Sharp/van der Heijde score at 12 months)"
             ]
-        }
-    },
-    {
-        "Index": "95e1cd65",
-        "Question": "Should patients with MTX-naïve and non-MTX csDMARDs naïve RA and low disease activity receive MTX monotherapy or an alternative csDMARD monotherapy?",
-        "P": "adults with rheumatoid arthritis meeting ACR/EULAR 2010 classification criteria",
-        "I": "methotrexate (MTX) monotherapy",
-        "C": [
-            "MTX-naïve and non-MTX csDMARDs naïve RA patients with low disease activity"
-        ],
-        "O": {
-            "disease activity (e.g., DAS28-CRP, CDAI, SDAI), radiographic progression, functional status (HAQ-DI), treatment persistence, adverse events (e.g., hepatotoxicity, gastrointestinal intolerance, cytopenias) at 6 and 12 months.": []
         }
     }
 ]

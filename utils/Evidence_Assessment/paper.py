@@ -9,7 +9,10 @@ from typing import List
 from uuid import uuid4
 import logging
 
-from PyPaperBot import __version__ as paperbot_version
+try:
+    from PyPaperBot import __version__ as paperbot_version
+except ModuleNotFoundError:
+    paperbot_version = "unavailable"
 
 from langchain_community.document_loaders.generic import GenericLoader
 
@@ -23,7 +26,10 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 
 
-from utils.Evidence_Assessment.download import download_pdf_by_paperbot
+try:
+    from utils.Evidence_Assessment.download import download_pdf_by_paperbot
+except ModuleNotFoundError:
+    download_pdf_by_paperbot = None
 from utils.Evidence_Assessment.PDFprocessing import CustomizedGrobidParser
 
 
@@ -210,14 +216,16 @@ class Paper:
         if not os.path.exists(self.save_folder_path):
             os.makedirs(self.save_folder_path)
 
-        paper_source_dir = "papers/PICOdff23ac6/" + self.paper_uid
-        
-        # 查找 paper_source_dir 下的 pdf 文件
-        if os.path.isdir(paper_source_dir):
+        paper_source_base = os.getenv("PAPER_SOURCE_DIR")
+
+        if paper_source_base:
+            paper_source_dir = os.path.join(paper_source_base, self.paper_uid)
+        else:
+            paper_source_dir = None
+
+        if paper_source_dir and os.path.isdir(paper_source_dir):
             pdf_files = glob.glob(os.path.join(paper_source_dir, "*.pdf"))
             if pdf_files:
-                # 复制 pdf 文件到 self.save_folder_path
-                import shutil
                 src_pdf = pdf_files[0]
                 dst_pdf = os.path.join(self.save_folder_path, os.path.basename(src_pdf))
                 shutil.copy2(src_pdf, dst_pdf)
@@ -449,8 +457,39 @@ class Paper:
             raise ValueError("PDF file does not exist.")
 
         collection_name = f"paper_{self.paper_uid}_vector"
+        should_create_vectorstore = not self.is_vectorstore_created
 
-        if not self.is_vectorstore_created:
+        if self.is_vectorstore_created:
+            client = None
+            try:
+                client = QdrantClient(path=self.vectorstore_save_path)
+                if not client.collection_exists(collection_name):
+                    should_create_vectorstore = True
+                else:
+                    point_count = client.count(
+                        collection_name=collection_name, exact=True
+                    ).count
+                    if point_count == 0:
+                        should_create_vectorstore = True
+                        logging.warning(
+                            "Vector store for paper %s is empty; rebuilding.",
+                            self.paper_uid,
+                        )
+            except Exception:
+                should_create_vectorstore = True
+                logging.warning(
+                    "Vector store for paper %s cannot be loaded; rebuilding.",
+                    self.paper_uid,
+                    exc_info=True,
+                )
+            finally:
+                if client is not None:
+                    client.close()
+
+        if should_create_vectorstore and os.path.exists(self.vectorstore_save_path):
+            shutil.rmtree(self.vectorstore_save_path)
+
+        if should_create_vectorstore:
             logging.debug("Creating vector store.")
             if embeddings is None:
                 raise ValueError(

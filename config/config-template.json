@@ -43,7 +43,10 @@
             "provider": "OpenAI",
             "model_name": "YOUR_EMBEDDING_MODEL_NAME",
             "API_KEY": "YOUR_API_KEY",
-            "BASE_URL": "YOUR_BASE_URL"
+            "BASE_URL": "YOUR_BASE_URL",
+            "kwargs": {
+                "check_embedding_ctx_length": false
+            }
         }
     },
     "pipeline": {
@@ -52,6 +55,9 @@
         "disease": "YOUR_DISEASE_OR_TOPIC",
         "clinical_question": "YOUR_CLINICAL_QUESTION",
         "pico_idx": "auto",
+        "runtime_environment": {
+            "TOP_K": "5"
+        },
         "paths": {
             "dataset": "data/YOUR_DATASET_NAME",
             "question_decomposition": "data/YOUR_DATASET_NAME/Question_Decomposition",
@@ -64,6 +70,7 @@
         },
         "pdf_handling": {
             "stop_when_missing_pdf": true,
+            "local_pdf_source_dir": "papers/PICO{pico_idx}",
             "missing_pdf_json": "missing_pdfs_{stage}_PICO{pico_idx}.json",
             "missing_pdf_markdown": "missing_pdfs_{stage}_PICO{pico_idx}.md"
         },
@@ -114,13 +121,23 @@
                 "randomized clinical trial"
             ],
             "inclusion_criteria": "",
-            "exclusion_criteria": ""
+            "exclusion_criteria": "",
+            "fallback_outcome_generation": {
+                "enabled": true,
+                "only_when_outcomeinfo_empty": true,
+                "use_configured_outcomes": true,
+                "include_extracted_outcomes": false,
+                "importance": "CRITICAL"
+            }
         },
         "phase4_evidence_assessment": {
             "reuse_existing_outputs": true,
             "transfer_study_selection_files": true,
             "require_assessed_outputs_for_skip": true,
+            "skip_when_dependency_missing": true,
             "input_comparator_postfix_map": {},
+            "derive_comparator_postfix": true,
+            "skip_comparators_without_inputs": true,
             "output_comparator_postfix_map": null,
             "annotation": {}
         },
@@ -142,7 +159,8 @@
         "record_screening_method": "basic",
         "full_text_assessment_method": "RAG",
         "exp_num": 3,
-        "threshold": 2
+        "threshold": 2,
+        "reupdate_component_list": []
     },
     "evidence_assessment": {
         "additional_requirements": {
