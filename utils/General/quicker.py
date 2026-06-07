@@ -574,43 +574,63 @@ class Quicker:
         from utils.Study_Selection.base import get_clinical_question_with_pico
 
         if isinstance(self.config['study_selection']['record_screening_method'], str):
-            from utils.Study_Selection.record_screening import screen_records
-
-            if self.quicker_data.search_config.get('multi-query'):
-                clinical_question_with_pico = self.quicker_data.search_config.get(
-                    'multi-query'
-                )
-            else:
-                study = (
-                    self.quicker_data.study
-                    if self.quicker_data.study
-                    else None  # todo 后续应该考虑enum的兼容
-                )
-                clinical_question_with_pico = get_clinical_question_with_pico(
-                    clinical_question=self.quicker_data.clinical_question,
-                    population=self.quicker_data.population,
-                    intervention=self.quicker_data.intervention,
-                    comparison=self.quicker_data.comparison,
-                    outcome=self.quicker_data.outcome,
-                    study=study,
-                )
-
-            logging.info(
-                "Run study selection using {} method".format(
-                    self.config['study_selection']['record_screening_method']
-                )
+            from utils.Study_Selection.record_screening import (
+                find_existing_screening_results,
+                screen_records,
             )
-            # The code is defining a variable named `screening_results_save_path_list` in Python.
-            screening_results_save_path_list = screen_records(
-                method=self.config['study_selection']['record_screening_method'],
-                search_results=processed_search_results,
+
+            record_screening_method = self.config['study_selection'][
+                'record_screening_method'
+            ]
+            screening_results_save_path_list = find_existing_screening_results(
+                method=record_screening_method,
                 pico_idx=self.quicker_data.pico_idx,
                 study_selection_base_path=self.study_selection_database_path,
-                disease=self.quicker_data.disease,
-                model=self.get_model('study_selection'),
                 exp_num=self.config['study_selection']['exp_num'],
-                clinical_question_with_pico=clinical_question_with_pico,
             )
+
+            if screening_results_save_path_list:
+                logging.info(
+                    "Found existing complete record screening results under "
+                    f"{record_screening_method}/{self.quicker_data.pico_idx}; "
+                    "skip record screening."
+                )
+            else:
+                if self.quicker_data.search_config.get('multi-query'):
+                    clinical_question_with_pico = self.quicker_data.search_config.get(
+                        'multi-query'
+                    )
+                else:
+                    study = (
+                        self.quicker_data.study
+                        if self.quicker_data.study
+                        else None  # todo 后续应该考虑enum的兼容
+                    )
+                    clinical_question_with_pico = get_clinical_question_with_pico(
+                        clinical_question=self.quicker_data.clinical_question,
+                        population=self.quicker_data.population,
+                        intervention=self.quicker_data.intervention,
+                        comparison=self.quicker_data.comparison,
+                        outcome=self.quicker_data.outcome,
+                        study=study,
+                    )
+
+                logging.info(
+                    "Run study selection using {} method".format(
+                        record_screening_method
+                    )
+                )
+                # The code is defining a variable named `screening_results_save_path_list` in Python.
+                screening_results_save_path_list = screen_records(
+                    method=record_screening_method,
+                    search_results=processed_search_results,
+                    pico_idx=self.quicker_data.pico_idx,
+                    study_selection_base_path=self.study_selection_database_path,
+                    disease=self.quicker_data.disease,
+                    model=self.get_model('study_selection'),
+                    exp_num=self.config['study_selection']['exp_num'],
+                    clinical_question_with_pico=clinical_question_with_pico,
+                )
             # extracting included studies
             assert (
                 self.config['study_selection']['threshold']

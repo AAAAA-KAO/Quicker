@@ -1,0 +1,39 @@
+{
+    "stage": "phase3_study_selection",
+    "pico_idx": "dff23ac6",
+    "missing_pdf_count": 4,
+    "missing_pdfs": [
+        {
+            "paper_uid": "b86413cf",
+            "title": "Stopping Tumor Necrosis Factor Inhibitor Treatment in Patients With Established Rheumatoid Arthritis in Remission or With Stable Low Disease Activity: A Pragmatic Multicenter, Open-Label Randomized Controlled Trial.",
+            "pmid": "26866428",
+            "doi": "10.1002/art.39626",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/b86413cf/b86413cf.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/b86413cf"
+        },
+        {
+            "paper_uid": "299288f8",
+            "title": "Tapering conventional synthetic DMARDs in patients with early arthritis in sustained remission: 2-year follow-up of the tREACH trial.",
+            "pmid": "27283332",
+            "doi": "10.1136/annrheumdis-2016-209272",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/299288f8/299288f8.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/299288f8"
+        },
+        {
+            "paper_uid": "8b48ea33",
+            "title": "Clinical benefit of 1-year certolizumab pegol (CZP) add-on therapy to methotrexate treatment in patients with early rheumatoid arthritis was observed following CZP discontinuation: 2-year results of the C-OPERA study, a phase III randomised trial.",
+            "pmid": "28153828",
+            "doi": "10.1136/annrheumdis-2016-210246",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/8b48ea33/8b48ea33.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/8b48ea33"
+        },
+        {
+            "paper_uid": "499a728c",
+            "title": "A multi-biomarker score measuring disease activity in rheumatoid arthritis patients tapering adalimumab or etanercept: predictive value for clinical and radiographic outcomes.",
+            "pmid": "28339738",
+            "doi": "10.1093/rheumatology/kex003",
+            "expected_pdf_path": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/499a728c/499a728c.pdf",
+            "expected_folder": "/Users/alanthomas-phd/Documents/Research/Experiments/Quicker/data/2021ACR RA/Paper_Library/PICOdff23ac6/499a728c"
+        }
+    ]
+}
