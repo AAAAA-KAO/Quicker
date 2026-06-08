@@ -216,6 +216,16 @@ class Paper:
         if not os.path.exists(self.save_folder_path):
             os.makedirs(self.save_folder_path)
 
+        if os.getenv("QUICKER_DISABLE_PDF_DOWNLOAD", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }:
+            raise ValueError(
+                "Automatic PDF retrieval is disabled. Please download the PDF "
+                f"manually and place it under {self.save_folder_path}."
+            )
+
         paper_source_base = os.getenv("PAPER_SOURCE_DIR")
 
         if paper_source_base:

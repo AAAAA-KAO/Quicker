@@ -1,130 +1,212 @@
+"""
+Phase1：问题分解脚本。
+
+运行示例：
+    conda run -n quicker python Phase1-question_decomposition.py \
+        --YOUR_CONFIG_PATH config/config.json
+
+脚本功能：
+    读取配置文件中的问题分解模型和临床问题，将临床问题拆解为 PICO
+    （Population、Intervention、Comparison、Outcome）结构，并保存到
+    PICO_Information.json。命令行参数会覆盖配置文件中的同名配置。
+
+输入：
+    1. --YOUR_CONFIG_PATH 指向的 JSON 配置文件。
+    2. 临床问题、数据集名、输出目录等，来自命令行或配置文件。
+
+输出：
+    {YOUR_QUESTION_DECOMPOSITION_PATH}/PICO_Information.json
+
+命令行参数：
+    --YOUR_CONFIG_PATH：必填，项目配置文件路径。
+    --YOUR_QUESTION_DECOMPOSITION_PATH：可选，Phase1 输出目录；未传入时读取
+        config.pipeline.paths.question_decomposition。
+    --dataset_name：可选，数据集名称；未传入时读取 config.pipeline.dataset_name。
+    --clinical_question：可选，待分解的临床问题；未传入时读取
+        config.pipeline.clinical_question。
+    --method：可选，问题分解方法；未传入时读取
+        config.pipeline.phase1_question_decomposition.method。
+    --pico_idx：可选，PICO 编号；未传入或为 auto 时，根据临床问题和数据集名生成。
+    --reuse_existing_pico / --no-reuse_existing_pico：可选，是否复用已存在的
+        同编号 PICO；未传入时读取配置。
+    --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
+    --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
+"""
+
+import argparse
 import json
 import os
-import hashlib
-import argparse
-import pandas as pd
-from dotenv import load_dotenv
-from pydantic import BaseModel, Field
-from langchain_core.runnables import (
-    RunnableLambda,
-    RunnableParallel,
-    RunnablePassthrough,
+from pathlib import Path
+
+from utils.cli_config import (
+    add_common_config_args,
+    choose,
+    config_path,
+    get_nested,
+    load_config,
+    phase_config,
+    prepare_environment,
+    resolve_pico_idx,
 )
-from langchain_openai import ChatOpenAI
-from langchain_openai import OpenAIEmbeddings
-from langchain_core.prompts import PromptTemplate
-from langchain_core.exceptions import OutputParserException
-from langchain_core.output_parsers import StrOutputParser
-load_dotenv(".env")
-
-from utils.PICO.base import create_dataset
-from utils.PICO.few_shot import match_few_shot, create_example_selector
-from utils.logger import setup_loggers, get_workflow_logger, get_detail_logger
-from utils.PICO.prompt import get_zero_shot_pipeline_prompt,get_few_shot_pipeline_prompt
-from utils.PICO.pfe import generate_experience,generate_answer,combine_examples_with_experience
 
 
-# Equipped the llm with structured output
-class QuestionDecompositionOutput(BaseModel):
-    P: list[str] = Field(description="The population of the question")
-    I: list[str] = Field(description="The intervention of the question")
-    C: list[str] = Field(description="The comparison of the question")
-    O: dict[str, list[str]] = Field(description="The outcome of the question")
+def get_question_decomposition_output_model():
+    from pydantic import BaseModel, Field
+
+    class QuestionDecompositionOutput(BaseModel):
+        P: list[str] = Field(description="The population of the question")
+        I: list[str] = Field(description="The intervention of the question")
+        C: list[str] = Field(description="The comparison of the question")
+        O: dict[str, list[str]] = Field(description="The outcome of the question")
+
+    return QuestionDecompositionOutput
 
 
-def main(args):
-    # 解析超参数
-    YOUR_CONFIG_PATH = args.YOUR_CONFIG_PATH
-    YOUR_QUESTION_DECOMPOSITION_PATH = args.YOUR_QUESTION_DECOMPOSITION_PATH
-    method = args.method
-    dataset_name = args.dataset_name
-    clinical_question = args.clinical_question
+def load_pico_list(pico_file_path: Path) -> list[dict]:
+    if not pico_file_path.exists():
+        return []
+    with pico_file_path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    if not isinstance(data, list):
+        raise ValueError(f"{pico_file_path} must contain a JSON list.")
+    return data
 
-    # 配置额外参数
-    question_index = hashlib.sha256((clinical_question + dataset_name).encode('utf-8')).hexdigest()[:8]
 
-    # 配置日志
-    setup_loggers(log_file=os.path.join(os.getenv("LOG_DIR"), dataset_name, "Question_Decomposition", f"{question_index}.log"))
+def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
+    phase_settings = phase_config(config, "phase1_question_decomposition")
+    args.dataset_name = choose(
+        args.dataset_name,
+        get_nested(config, ("pipeline", "dataset_name")),
+        "dataset_name/pipeline.dataset_name",
+    )
+    args.clinical_question = choose(
+        args.clinical_question,
+        get_nested(config, ("pipeline", "clinical_question")),
+        "clinical_question/pipeline.clinical_question",
+    )
+    args.method = choose(
+        args.method,
+        phase_settings.get("method"),
+        "method/pipeline.phase1_question_decomposition.method",
+    )
+    args.YOUR_QUESTION_DECOMPOSITION_PATH = choose(
+        args.YOUR_QUESTION_DECOMPOSITION_PATH,
+        config_path(config, "question_decomposition"),
+        "YOUR_QUESTION_DECOMPOSITION_PATH/pipeline.paths.question_decomposition",
+    )
+    args.pico_idx = resolve_pico_idx(args.pico_idx, config)
+    args.reuse_existing_pico = choose(
+        args.reuse_existing_pico,
+        phase_settings.get("reuse_existing_pico"),
+        "reuse_existing_pico/pipeline.phase1_question_decomposition.reuse_existing_pico",
+        required=False,
+    )
+    return args
+
+
+def build_question_decomposition_model(config: dict):
+    from langchain_openai import ChatOpenAI
+
+    model_config = get_nested(config, ("model", "question_decomposition_model"), {})
+    provider = model_config["provider"]
+    if provider != "OpenAI":
+        raise NotImplementedError(f"Provider {provider} is not implemented")
+
+    model_kwargs = {
+        "openai_api_key": model_config["API_KEY"],
+        "base_url": model_config["BASE_URL"],
+        "model": model_config["model_name"],
+    }
+    if model_config.get("temperature") is not None:
+        model_kwargs["temperature"] = model_config["temperature"]
+    output_model = get_question_decomposition_output_model()
+    return ChatOpenAI(**model_kwargs).with_structured_output(
+        output_model
+    )
+
+
+def run(args: argparse.Namespace) -> None:
+    config = load_config(args.YOUR_CONFIG_PATH)
+    args = resolve_args(args, config)
+    log_dir = prepare_environment(args, config)
+
+    from utils.logger import get_detail_logger, get_workflow_logger, setup_loggers
+
+    setup_loggers(
+        log_file=os.path.join(
+            log_dir,
+            args.dataset_name,
+            "Question_Decomposition",
+            f"{args.pico_idx}.log",
+        )
+    )
     wf_logger = get_workflow_logger(__name__)
     dt_logger = get_detail_logger(__name__)
 
-    # --------------------任务执行---------------------
-    # 读取模型配置
-    wf_logger.info(f"Start to decompose the question: {clinical_question}")
-    wf_logger.info(f"【1/3】Config the model and prompt, Now you are using the {method} method")
-    config_path = os.path.join(YOUR_CONFIG_PATH)
-    with open(config_path, 'r', encoding="utf8") as file:
-        config = json.load(file)
-    model_config = config['model']
-    provider = model_config[f'question_decomposition_model'].get('provider', 'OpenAI')
-    model_name = model_config[f'question_decomposition_model']['model_name']
-    api_key = model_config[f'question_decomposition_model']['API_KEY']
-    api_base_URL = model_config[f'question_decomposition_model']['BASE_URL']
+    if args.method != "zero-shot":
+        raise NotImplementedError(
+            "This script currently implements the zero-shot question decomposition path."
+        )
 
-    # 创建模型
-    qd_model = ChatOpenAI(openai_api_key=api_key, base_url=api_base_URL, model=model_name)
-    qd_model = qd_model.with_structured_output(QuestionDecompositionOutput)
+    output_dir = Path(args.YOUR_QUESTION_DECOMPOSITION_PATH)
+    pico_file_path = output_dir / "PICO_Information.json"
+    pico_list = load_pico_list(pico_file_path)
+    if args.reuse_existing_pico and any(
+        str(item.get("Index")) == args.pico_idx for item in pico_list
+    ):
+        print(f"Existing PICO found and reused: {args.pico_idx}")
+        return
 
-    # zero-shot：创建prompt
-    pipeline_prompt = get_zero_shot_pipeline_prompt(dataset_name)
-    
-    # 构建langchain链
-    later_zero_shot_exp = qd_model
+    wf_logger.info("Start to decompose the question: %s", args.clinical_question)
+    wf_logger.info("Use question decomposition method: %s", args.method)
+
+    from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+    from utils.PICO.prompt import get_zero_shot_pipeline_prompt
+
+    qd_model = build_question_decomposition_model(config)
+    pipeline_prompt = get_zero_shot_pipeline_prompt(args.dataset_name)
     local_zero_shot_chain = pipeline_prompt | RunnableParallel(
-        generation_chain=later_zero_shot_exp, prompt_value=RunnablePassthrough()
+        generation_chain=qd_model,
+        prompt_value=RunnablePassthrough(),
     )
 
-    # 运行langchain链
-    wf_logger.info(f"【2/3】Run the {method} chain")
-    # Change the chain if you use the other two methods
-    answer_dict = local_zero_shot_chain.invoke({"Question": clinical_question})
-    dt_logger.info(f"The prompt is: {answer_dict['prompt_value']}")
+    answer_dict = local_zero_shot_chain.invoke({"Question": args.clinical_question})
+    dt_logger.info("The prompt is: %s", answer_dict["prompt_value"])
 
-    # 提取PICO元素
-    population = answer_dict['generation_chain'].P
-    intervention = answer_dict['generation_chain'].I
-    comparison = answer_dict['generation_chain'].C
-    outcome = answer_dict['generation_chain'].O
-    dt_logger.info(f"Population: {population}")
-    dt_logger.info(f"Intervention: {intervention}")
-    dt_logger.info(f"Comparison: {comparison}")
-    dt_logger.info(f"Outcome: {outcome}")
+    generation = answer_dict["generation_chain"]
+    pico_dict = {
+        "Index": args.pico_idx,
+        "Question": args.clinical_question,
+        "P": generation.P,
+        "I": generation.I,
+        "C": generation.C,
+        "O": generation.O,
+    }
+    dt_logger.info("PICO result: %s", pico_dict)
 
-    # 读取已有的PICO
-    pico_file_path = os.path.join(YOUR_QUESTION_DECOMPOSITION_PATH, 'PICO_Information.json')
-    wf_logger.info(f"【3/3】Store the PICO to {pico_file_path}")
-    if os.path.exists(pico_file_path):
-        with open(pico_file_path, 'r', encoding="utf8") as file:
-            pico_list = json.load(file)
-    else:
-        pico_list = []
-
-    # 将本次新增的PICO添加到已有的PICO列表
-    pico_dict = {}
-    pico_dict['Index'] = question_index
-    pico_dict['Question'] = clinical_question
-    pico_dict['P'] = population
-    pico_dict['I'] = intervention
-    pico_dict['C'] = comparison
-    pico_dict['O'] = outcome
     pico_list.append(pico_dict)
-
-    if not os.path.exists(YOUR_QUESTION_DECOMPOSITION_PATH):
-        os.makedirs(YOUR_QUESTION_DECOMPOSITION_PATH)
-
-    # 保存更新后的PICO列表
-    with open(os.path.join(YOUR_QUESTION_DECOMPOSITION_PATH,'PICO_Information.json'), 'w', encoding="utf8") as file:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with pico_file_path.open("w", encoding="utf-8") as file:
         json.dump(pico_list, file, indent=4, ensure_ascii=False)
 
+    print(f"Saved PICO information to: {pico_file_path}")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Decompose a question into PICO components")
-    parser.add_argument("--YOUR_CONFIG_PATH", type=str, default='config/config.json', help="The config path")
-    parser.add_argument("--YOUR_QUESTION_DECOMPOSITION_PATH", type=str, default='data/2021ACR RA/Question_Decomposition', help="The question decomposition path")
-    parser.add_argument("--method", type=str, default='zero-shot', help="The method to use")
-    parser.add_argument("--dataset_name", type=str, default='2021ACR RA', help="The dataset name")
-    parser.add_argument("--clinical_question", type=str, default="Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?", help="The clinical question to decompose")
-                                                                # Should patients with RA on DMARDs who are in low disease activity gradually taper off DMARDs, abruptly withdraw DMARDs, or continue DMARDS at the same doses?
-    args = parser.parse_args()
 
-    main(args)
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Phase1 question decomposition.")
+    add_common_config_args(parser)
+    parser.add_argument("--YOUR_QUESTION_DECOMPOSITION_PATH", default=None)
+    parser.add_argument("--dataset_name", default=None)
+    parser.add_argument("--clinical_question", default=None)
+    parser.add_argument("--method", default=None)
+    parser.add_argument("--pico_idx", default=None)
+    parser.add_argument(
+        "--reuse_existing_pico",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    run(build_parser().parse_args())

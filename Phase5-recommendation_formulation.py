@@ -1,3 +1,43 @@
+"""
+Phase5：推荐意见形成脚本。
+
+运行示例：
+    conda run -n quicker python Phase5-recommendation_formulation.py \
+        --YOUR_CONFIG_PATH config/config.json
+
+脚本功能：
+    读取 Phase4 证据评价结果，调用推荐形成模型生成最终推荐意见，并保存包含
+    evidence_assessment_results、supplementary_information 和 final_result 的 JSON。
+    命令行参数会覆盖配置文件中的同名配置。
+
+输入：
+    1. --YOUR_CONFIG_PATH 指向的 JSON 配置文件。
+    2. {YOUR_QUESTION_DECOMPOSITION_PATH}/PICO_Information.json。
+    3. {YOUR_RECOMMENDATION_FORMATION_PATH}/outcomeinfo 或该目录下匹配 PICO 的
+       outcomeinfo_PICO*.json；也可通过参数先从 Phase4 复制。
+
+输出：
+    {YOUR_RECOMMENDATION_FORMATION_PATH}/quicker_data(PICO_IDX{pico_idx})_{timestamp}.json
+
+命令行参数：
+    --YOUR_CONFIG_PATH：必填，项目配置文件路径。
+    --YOUR_QUESTION_DECOMPOSITION_PATH：可选，Phase1 输出目录。
+    --YOUR_LITERATURE_SEARCH_PATH：可选，Phase2 工作目录。
+    --YOUR_STUDY_SELECTION_PATH：可选，Phase3 输出目录。
+    --YOUR_EVIDENCE_ASSESSMENT_PATH：可选，Phase4 输出目录。
+    --YOUR_PAPER_LIBRARY_PATH：可选，PDF 本地库目录。
+    --YOUR_RECOMMENDATION_FORMATION_PATH：可选，Phase5 工作与输出目录。
+    --disease：可选，疾病/主题名称。
+    --pico_idx：可选，PICO 编号；未传入或为 auto 时根据配置生成。
+    --overall_certainty：可选，总体证据确定性。
+    --supplementary_information：可选，推荐形成时补充给模型的信息。
+    --transfer_evidence_assessment_files / --no-transfer_evidence_assessment_files：可选，
+        是否先从 Phase4 复制 paperinfo/outcomeinfo。
+    --print_state：可选，运行前打印临床问题与 comparator 列表。
+    --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
+    --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
+"""
+
 import argparse
 import json
 import logging
@@ -6,6 +46,17 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, Optional
+
+from utils.cli_config import (
+    add_common_config_args,
+    choose,
+    config_path,
+    get_nested,
+    load_config,
+    phase_config,
+    prepare_environment,
+    resolve_pico_idx,
+)
 
 
 def transfer_outcome_and_paperinfo(
@@ -140,16 +191,18 @@ def get_recommendation_model(config_path: str):
         config = json.load(file)
 
     model_config = config["model"]["recommendation_formation_model"]
-    provider = model_config.get("provider", "OpenAI")
+    provider = model_config["provider"]
     if provider != "OpenAI":
         raise NotImplementedError(f"Provider {provider} is not implemented")
 
-    return ChatOpenAI(
-        openai_api_key=model_config["API_KEY"],
-        base_url=model_config["BASE_URL"],
-        model=model_config["model_name"],
-        temperature=model_config.get("temperature", 1.0),
-    )
+    model_kwargs = {
+        "openai_api_key": model_config["API_KEY"],
+        "base_url": model_config["BASE_URL"],
+        "model": model_config["model_name"],
+    }
+    if model_config.get("temperature") is not None:
+        model_kwargs["temperature"] = model_config["temperature"]
+    return ChatOpenAI(**model_kwargs)
 
 
 def save_result(
@@ -166,7 +219,72 @@ def save_result(
     return file_path
 
 
+def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
+    phase_settings = phase_config(config, "phase5_recommendation_formulation")
+    args.YOUR_QUESTION_DECOMPOSITION_PATH = choose(
+        args.YOUR_QUESTION_DECOMPOSITION_PATH,
+        config_path(config, "question_decomposition"),
+        "YOUR_QUESTION_DECOMPOSITION_PATH/pipeline.paths.question_decomposition",
+    )
+    args.YOUR_LITERATURE_SEARCH_PATH = choose(
+        args.YOUR_LITERATURE_SEARCH_PATH,
+        config_path(config, "literature_search"),
+        "YOUR_LITERATURE_SEARCH_PATH/pipeline.paths.literature_search",
+    )
+    args.YOUR_STUDY_SELECTION_PATH = choose(
+        args.YOUR_STUDY_SELECTION_PATH,
+        config_path(config, "study_selection"),
+        "YOUR_STUDY_SELECTION_PATH/pipeline.paths.study_selection",
+    )
+    args.YOUR_EVIDENCE_ASSESSMENT_PATH = choose(
+        args.YOUR_EVIDENCE_ASSESSMENT_PATH,
+        config_path(config, "evidence_assessment"),
+        "YOUR_EVIDENCE_ASSESSMENT_PATH/pipeline.paths.evidence_assessment",
+    )
+    args.YOUR_PAPER_LIBRARY_PATH = choose(
+        args.YOUR_PAPER_LIBRARY_PATH,
+        config_path(config, "paper_library"),
+        "YOUR_PAPER_LIBRARY_PATH/pipeline.paths.paper_library",
+    )
+    args.YOUR_RECOMMENDATION_FORMATION_PATH = choose(
+        args.YOUR_RECOMMENDATION_FORMATION_PATH,
+        config_path(config, "recommendation_formation"),
+        "YOUR_RECOMMENDATION_FORMATION_PATH/pipeline.paths.recommendation_formation",
+    )
+    args.disease = choose(
+        args.disease,
+        get_nested(config, ("pipeline", "disease")),
+        "disease/pipeline.disease",
+    )
+    args.pico_idx = resolve_pico_idx(args.pico_idx, config)
+    args.overall_certainty = choose(
+        args.overall_certainty,
+        phase_settings.get("overall_certainty"),
+        "overall_certainty/pipeline.phase5_recommendation_formulation.overall_certainty",
+    )
+    args.supplementary_information = choose(
+        args.supplementary_information,
+        phase_settings.get("supplementary_information"),
+        "supplementary_information/pipeline.phase5_recommendation_formulation.supplementary_information",
+        required=False,
+    )
+    args.transfer_evidence_assessment_files = choose(
+        args.transfer_evidence_assessment_files,
+        phase_settings.get("transfer_evidence_assessment_files"),
+        "transfer_evidence_assessment_files/pipeline.phase5_recommendation_formulation.transfer_evidence_assessment_files",
+    )
+    if args.print_state is None:
+        args.print_state = False
+    if args.supplementary_information is None:
+        args.supplementary_information = ""
+    return args
+
+
 def run(args: argparse.Namespace) -> None:
+    config = load_config(args.YOUR_CONFIG_PATH)
+    args = resolve_args(args, config)
+    prepare_environment(args, config)
+
     if args.transfer_evidence_assessment_files:
         transfer_outcome_and_paperinfo(
             source_dir_path=args.YOUR_EVIDENCE_ASSESSMENT_PATH,
@@ -216,80 +334,77 @@ def run(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run recommendation formulation.")
-    parser.add_argument(
-        "--YOUR_CONFIG_PATH",
-        type=str,
-        default="config/config.json",
-        help="Path to config.json.",
-    )
+    add_common_config_args(parser)
     parser.add_argument(
         "--YOUR_QUESTION_DECOMPOSITION_PATH",
         type=str,
-        default="data/2021ACR RA/Question_Decomposition",
+        default=None,
         help="Question decomposition folder.",
     )
     parser.add_argument(
         "--YOUR_LITERATURE_SEARCH_PATH",
         type=str,
-        default="data/2021ACR RA/Literature_Search",
+        default=None,
         help="Literature search folder.",
     )
     parser.add_argument(
         "--YOUR_STUDY_SELECTION_PATH",
         type=str,
-        default="data/2021ACR RA/Study_Selection",
+        default=None,
         help="Study selection folder.",
     )
     parser.add_argument(
         "--YOUR_EVIDENCE_ASSESSMENT_PATH",
         type=str,
-        default="data/2021ACR RA/Evidence_Assessment",
+        default=None,
         help="Evidence assessment folder.",
     )
     parser.add_argument(
         "--YOUR_PAPER_LIBRARY_PATH",
         type=str,
-        default="data/2021ACR RA/Paper_Library",
+        default=None,
         help="Paper library folder.",
     )
     parser.add_argument(
         "--YOUR_RECOMMENDATION_FORMATION_PATH",
         type=str,
-        default="data/2021ACR RA/Recommendation_Formation",
+        default=None,
         help="Recommendation formulation folder.",
     )
     parser.add_argument(
         "--disease",
         type=str,
-        default="Rheumatoid Arthritis (RA)",
+        default=None,
         help="Disease name or clinical topic.",
     )
     parser.add_argument(
         "--pico_idx",
         type=str,
-        default="dff23ac6",
+        default=None,
         help="PICO index from PICO_Information.json.",
     )
     parser.add_argument(
         "--overall_certainty",
         type=str,
-        default="LOW",
+        default=None,
         help='Overall certainty, e.g. "VERY LOW", "LOW", "MODERATE", or "HIGH".',
     )
     parser.add_argument(
         "--supplementary_information",
         type=str,
-        default="",
+        default=None,
         help="Supplementary information for recommendation formulation.",
     )
     parser.add_argument(
         "--transfer_evidence_assessment_files",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Copy matching outcomeinfo/paperinfo files before running.",
     )
     parser.add_argument(
         "--print_state",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Print Quicker state before recommendation formulation.",
     )
     return parser

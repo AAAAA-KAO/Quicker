@@ -1,25 +1,27 @@
 """
-Phase3 第一阶段：题录筛选与 PDF 人工下载清单生成脚本。
+Phase3 第二阶段：全文评估脚本。
 
 运行示例：
-    conda run -n quicker python Phase3-study_selection.py \
+    conda run -n quicker python Phase3-full_text_assessment.py \
         --YOUR_CONFIG_PATH config/config.json
 
 脚本功能：
-    读取 Phase2 输出的检索结果，运行题录筛选（record screening），生成进入
-    全文评估阶段的论文列表。脚本不会自动下载 PDF；它会检查 Paper_Library 中
-    是否已有 PDF，并把缺失 PDF 信息写入 JSON 清单，提示用户自行下载。
+    读取 Phase3 第一阶段输出的题录纳入论文列表，检查 Paper_Library 中是否已有
+    所需 PDF。若 PDF 缺失，脚本会写出缺失 PDF 清单并提示用户自行下载；默认
+    不继续执行全文评估，也不会自动下载 PDF。PDF 齐全后，脚本运行全文评估，
+    生成 Study_Selection 阶段的 paperinfo 和 outcomeinfo。
 
 输入：
     1. --YOUR_CONFIG_PATH 指向的 JSON 配置文件。
-    2. {YOUR_DATASET_PATH}/quicker_data(PICO_IDX{pico_idx})_ls.json。
-    3. {YOUR_QUESTION_DECOMPOSITION_PATH}/PICO_Information.json（用于补充 outcome）。
+    2. record_included_input_path 指向的题录纳入论文列表 JSON。
+    3. {YOUR_DATASET_PATH}/quicker_data(PICO_IDX{pico_idx})_ls.json。
+    4. Paper_Library/PICO{pico_idx}/{paper_uid}/ 下的本地 PDF。
 
 输出：
-    1. record_included_output_path：题录筛选后进入全文评估的论文列表 JSON。
-    2. missing_pdf_json_path：缺失 PDF 清单 JSON。
-    3. missing_pdf_markdown_path：可选，缺失 PDF 清单 Markdown。
-    4. 题录筛选 CSV 结果，保存到 Study_Selection/Results/screening_records。
+    1. {YOUR_STUDY_SELECTION_PATH}/paperinfo/paperinfo_PICO*.json。
+    2. {YOUR_STUDY_SELECTION_PATH}/outcomeinfo/outcomeinfo_PICO*.json。
+    3. Study_Selection/Results/full_text_assessment 下的 QuickerData 运行结果。
+    4. 若缺失 PDF，则输出 missing_pdf_json_path 清单。
 
 命令行参数：
     --YOUR_CONFIG_PATH：必填，项目配置文件路径。
@@ -31,23 +33,22 @@ Phase3 第一阶段：题录筛选与 PDF 人工下载清单生成脚本。
     --YOUR_REPORTS_PATH：可选，报告输出目录。
     --disease：可选，疾病/主题名称。
     --pico_idx：可选，PICO 编号；未传入或为 auto 时根据配置生成。
-    --record_screening_method：可选，题录筛选方法。
-    --exp_num：可选，题录筛选重复实验次数。
-    --threshold：可选，达到多少次 Included 判定后进入全文评估。
+    --full_text_assessment_method：可选，全文评估方法。
+    --reupdate_component_list：可选，JSON 字符串或 JSON 文件路径，指定需要重新抽取的 PICO 组件。
     --study：可选，JSON 字符串或 JSON 文件路径，指定研究类型列表。
     --inclusion_criteria：可选，纳入标准。
     --exclusion_criteria：可选，排除标准。
     --quickerdata_ls_path：可选，Phase2 汇总输出 JSON 路径。
-    --record_included_output_path：可选，题录纳入论文列表输出路径。
+    --record_included_input_path：可选，Phase3 第一阶段输出的题录纳入论文列表。
     --missing_pdf_json_path：可选，缺失 PDF 清单 JSON 输出路径。
     --missing_pdf_markdown_path：可选，缺失 PDF 清单 Markdown 输出路径。
-    --reuse_existing_outputs / --no-reuse_existing_outputs：可选，是否复用已有题录筛选输出。
+    --stop_when_missing_pdf / --no-stop_when_missing_pdf：可选，缺失 PDF 时是否停止。
+    --print_state：可选，打印 QuickerData 阶段状态。
     --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
     --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
 """
 
 import argparse
-import json
 import os
 from pathlib import Path
 
@@ -64,7 +65,6 @@ from utils.cli_config import (
     resolve_dataset_path,
     resolve_pico_idx,
     resolve_reports_path,
-    write_json_file,
 )
 from utils.pdf_manifest import (
     build_pdf_manifest,
@@ -82,6 +82,18 @@ def load_pico(question_decomposition_path: str, pico_idx: str) -> dict:
         if str(pico.get("Index")) == str(pico_idx):
             return pico
     raise ValueError(f"PICO index {pico_idx} not found in {pico_path}")
+
+
+def load_record_included_list(path: str) -> list[dict]:
+    data = load_json_file(path)
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and isinstance(data.get("record_included_studies"), list):
+        return data["record_included_studies"]
+    raise ValueError(
+        "record_included_input_path must contain a JSON list or a JSON object "
+        "with record_included_studies."
+    )
 
 
 def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
@@ -116,20 +128,16 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         "disease/pipeline.disease",
     )
     args.pico_idx = resolve_pico_idx(args.pico_idx, config)
-    args.record_screening_method = choose(
-        args.record_screening_method,
-        get_nested(config, ("study_selection", "record_screening_method")),
-        "record_screening_method/study_selection.record_screening_method",
+    args.full_text_assessment_method = choose(
+        args.full_text_assessment_method,
+        get_nested(config, ("study_selection", "full_text_assessment_method")),
+        "full_text_assessment_method/study_selection.full_text_assessment_method",
     )
-    args.exp_num = choose(
-        args.exp_num,
-        get_nested(config, ("study_selection", "exp_num")),
-        "exp_num/study_selection.exp_num",
-    )
-    args.threshold = choose(
-        args.threshold,
-        get_nested(config, ("study_selection", "threshold")),
-        "threshold/study_selection.threshold",
+    args.reupdate_component_list = choose_json(
+        args.reupdate_component_list,
+        get_nested(config, ("study_selection", "reupdate_component_list")),
+        "reupdate_component_list/study_selection.reupdate_component_list",
+        expected_type=list,
     )
     args.study = choose_json(
         args.study,
@@ -149,28 +157,27 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         "exclusion_criteria/pipeline.phase3_study_selection.exclusion_criteria",
         required=False,
     )
-    args.reuse_existing_outputs = choose(
-        args.reuse_existing_outputs,
-        phase_settings.get("reuse_existing_outputs"),
-        "reuse_existing_outputs/pipeline.phase3_study_selection.reuse_existing_outputs",
-        required=False,
+    args.stop_when_missing_pdf = choose(
+        args.stop_when_missing_pdf,
+        pdf_settings.get("stop_when_missing_pdf"),
+        "stop_when_missing_pdf/pipeline.pdf_handling.stop_when_missing_pdf",
     )
     args.quickerdata_ls_path = choose(
         args.quickerdata_ls_path,
         str(Path(args.YOUR_DATASET_PATH) / f"quicker_data(PICO_IDX{args.pico_idx})_ls.json"),
         "quickerdata_ls_path",
     )
-    args.record_included_output_path = choose(
-        args.record_included_output_path,
+    args.record_included_input_path = choose(
+        args.record_included_input_path,
         str(
             Path(args.YOUR_STUDY_SELECTION_PATH)
             / "record_included_studies"
             / f"record_included_PICO{args.pico_idx}.json"
         ),
-        "record_included_output_path",
+        "record_included_input_path",
     )
 
-    stage_name = "phase3_record_screening"
+    stage_name = "phase3_full_text_assessment"
     json_pattern = pdf_settings.get("missing_pdf_json")
     markdown_pattern = pdf_settings.get("missing_pdf_markdown")
     args.missing_pdf_json_path = choose(
@@ -207,17 +214,19 @@ def build_quicker(args: argparse.Namespace):
 
 
 def configure_quicker_for_cli(quicker, args: argparse.Namespace) -> None:
-    quicker.config["study_selection"]["record_screening_method"] = (
-        args.record_screening_method
+    quicker.config["study_selection"]["full_text_assessment_method"] = (
+        args.full_text_assessment_method
     )
-    quicker.config["study_selection"]["exp_num"] = int(args.exp_num)
-    quicker.config["study_selection"]["threshold"] = int(args.threshold)
+    quicker.config["study_selection"]["reupdate_component_list"] = (
+        args.reupdate_component_list
+    )
 
 
 def run(args: argparse.Namespace) -> None:
     config = load_config(args.YOUR_CONFIG_PATH)
     args = resolve_args(args, config)
     log_dir = prepare_environment(args, config)
+    os.environ["QUICKER_DISABLE_PDF_DOWNLOAD"] = "1"
 
     from utils.logger import get_detail_logger, get_workflow_logger, setup_loggers
 
@@ -226,11 +235,31 @@ def run(args: argparse.Namespace) -> None:
             log_dir,
             Path(args.YOUR_DATASET_PATH).name,
             "Study_Selection",
-            f"{args.pico_idx}_record_screening.log",
+            f"{args.pico_idx}_full_text_assessment.log",
         )
     )
     wf_logger = get_workflow_logger(__name__)
     dt_logger = get_detail_logger(__name__)
+
+    record_included_list = load_record_included_list(args.record_included_input_path)
+    manifest = build_pdf_manifest(
+        papers=record_included_list,
+        paper_library_path=args.YOUR_PAPER_LIBRARY_PATH,
+        pico_idx=args.pico_idx,
+        stage="phase3_full_text_assessment",
+    )
+    json_output, markdown_output = write_pdf_manifest(
+        manifest,
+        json_path=args.missing_pdf_json_path,
+        markdown_path=args.missing_pdf_markdown_path,
+    )
+    if manifest["missing_pdf_count"] and args.stop_when_missing_pdf:
+        print(f"Missing PDF manifest saved to: {json_output}")
+        if markdown_output:
+            print(f"Missing PDF markdown guide saved to: {markdown_output}")
+        raise SystemExit(
+            "PDF 文件尚未齐全。请按清单下载并放置 PDF 后，再运行全文评估脚本。"
+        )
 
     quickerdata_ls = load_json_file(args.quickerdata_ls_path)
     pico = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
@@ -258,42 +287,40 @@ def run(args: argparse.Namespace) -> None:
         exclusion_criteria=args.exclusion_criteria or "",
     )
 
-    record_output_path = Path(args.record_included_output_path)
-    if args.reuse_existing_outputs and record_output_path.exists():
-        wf_logger.info("Reuse existing record-included output: %s", record_output_path)
-        record_included_list = load_json_file(record_output_path)
-    else:
-        wf_logger.info("Run record screening for PICO %s", args.pico_idx)
-        processed_search_results = quicker.preprocess_search_results()
-        record_included_list = quicker.select_studies_by_record_screening(
-            processed_search_results=processed_search_results
-        )
-        write_json_file(record_output_path, record_included_list)
+    if args.print_state:
+        print(quicker.quicker_data.check_stage_state())
+        print(quicker.quicker_data.not_none_data)
 
-    manifest = build_pdf_manifest(
-        papers=record_included_list,
-        paper_library_path=args.YOUR_PAPER_LIBRARY_PATH,
-        pico_idx=args.pico_idx,
-        stage="phase3_record_screening",
+    wf_logger.info("Run full text assessment for PICO %s", args.pico_idx)
+    record_included_list, full_text_included_list, total_outcome_list = (
+        quicker.select_studies_by_full_text_assessment(record_included_list)
     )
-    json_output, markdown_output = write_pdf_manifest(
-        manifest,
-        json_path=args.missing_pdf_json_path,
-        markdown_path=args.missing_pdf_markdown_path,
+    quicker.quicker_data.update_data(
+        {
+            "record_included_studies": record_included_list,
+            "full_text_included_studies": full_text_included_list,
+            "total_outcome_list": total_outcome_list,
+        }
     )
 
-    dt_logger.info("Record-included papers: %s", record_included_list)
-    print(f"Record-included studies saved to: {record_output_path}")
-    print(f"PDF manifest saved to: {json_output}")
-    if markdown_output:
-        print(f"PDF markdown guide saved to: {markdown_output}")
-    print(f"Missing PDF count: {manifest['missing_pdf_count']}")
+    results_save_path = (
+        Path(args.YOUR_STUDY_SELECTION_PATH)
+        / "Results"
+        / "full_text_assessment"
+        / args.full_text_assessment_method
+        / args.pico_idx
+    )
+    results_save_path.mkdir(parents=True, exist_ok=True)
+    quicker.quicker_data.to_json(str(results_save_path))
+    dt_logger.info("Full text assessment output folder: %s", results_save_path)
+
+    print(f"Full text assessment results saved under: {results_save_path}")
+    print(f"Paper info folder: {Path(args.YOUR_STUDY_SELECTION_PATH) / 'paperinfo'}")
+    print(f"Outcome info folder: {Path(args.YOUR_STUDY_SELECTION_PATH) / 'outcomeinfo'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Phase3 record screening and PDF manifest generation."
-    )
+    parser = argparse.ArgumentParser(description="Phase3 full text assessment.")
     add_common_config_args(parser)
     parser.add_argument("--YOUR_DATASET_PATH", default=None)
     parser.add_argument("--YOUR_QUESTION_DECOMPOSITION_PATH", default=None)
@@ -303,20 +330,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--YOUR_REPORTS_PATH", default=None)
     parser.add_argument("--disease", default=None)
     parser.add_argument("--pico_idx", default=None)
-    parser.add_argument("--record_screening_method", default=None)
-    parser.add_argument("--exp_num", type=int, default=None)
-    parser.add_argument("--threshold", type=int, default=None)
+    parser.add_argument("--full_text_assessment_method", default=None)
+    parser.add_argument("--reupdate_component_list", default=None)
     parser.add_argument("--study", default=None)
     parser.add_argument("--inclusion_criteria", default=None)
     parser.add_argument("--exclusion_criteria", default=None)
     parser.add_argument("--quickerdata_ls_path", default=None)
-    parser.add_argument("--record_included_output_path", default=None)
+    parser.add_argument("--record_included_input_path", default=None)
     parser.add_argument("--missing_pdf_json_path", default=None)
     parser.add_argument("--missing_pdf_markdown_path", default=None)
     parser.add_argument(
-        "--reuse_existing_outputs",
+        "--stop_when_missing_pdf",
         action=argparse.BooleanOptionalAction,
         default=None,
+    )
+    parser.add_argument(
+        "--print_state",
+        action=argparse.BooleanOptionalAction,
+        default=False,
     )
     return parser
 
