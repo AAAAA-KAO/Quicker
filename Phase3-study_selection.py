@@ -57,6 +57,7 @@ from utils.cli_config import (
     get_nested,
     load_config,
     load_json_file,
+    load_valid_json_file,
     phase_config,
     prepare_environment,
     resolve_dataset_path,
@@ -217,6 +218,36 @@ def run(args: argparse.Namespace) -> None:
     wf_logger = get_workflow_logger(__name__)
     dt_logger = get_detail_logger(__name__)
 
+    record_output_path = Path(args.record_included_output_path)
+    manifest_path = Path(args.missing_pdf_json_path)
+    if args.reuse_existing_outputs:
+        existing_record_included_list = load_valid_json_file(record_output_path, list)
+        if existing_record_included_list is not None:
+            existing_manifest = load_valid_json_file(manifest_path, dict)
+            if existing_manifest is not None:
+                wf_logger.info("Reuse existing record-included output: %s", record_output_path)
+                wf_logger.info("Reuse existing PDF manifest: %s", manifest_path)
+                print(f"Record-included studies reused from: {record_output_path}")
+                print(f"PDF manifest reused from: {manifest_path}")
+                print(f"Missing PDF count: {existing_manifest.get('missing_pdf_count')}")
+                return
+
+            manifest = build_pdf_manifest(
+                papers=existing_record_included_list,
+                paper_library_path=args.YOUR_PAPER_LIBRARY_PATH,
+                pico_idx=args.pico_idx,
+                stage="phase3_record_screening",
+            )
+            json_output, _ = write_pdf_manifest(
+                manifest,
+                json_path=args.missing_pdf_json_path,
+                markdown_path=None,
+            )
+            print(f"Record-included studies reused from: {record_output_path}")
+            print(f"PDF manifest saved to: {json_output}")
+            print(f"Missing PDF count: {manifest['missing_pdf_count']}")
+            return
+
     quickerdata_ls = load_json_file(args.quickerdata_ls_path)
     pico = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
     quicker = build_quicker(args)
@@ -243,17 +274,12 @@ def run(args: argparse.Namespace) -> None:
         exclusion_criteria=args.exclusion_criteria or "",
     )
 
-    record_output_path = Path(args.record_included_output_path)
-    if args.reuse_existing_outputs and record_output_path.exists():
-        wf_logger.info("Reuse existing record-included output: %s", record_output_path)
-        record_included_list = load_json_file(record_output_path)
-    else:
-        wf_logger.info("Run record screening for PICO %s", args.pico_idx)
-        processed_search_results = quicker.preprocess_search_results()
-        record_included_list = quicker.select_studies_by_record_screening(
-            processed_search_results=processed_search_results
-        )
-        write_json_file(record_output_path, record_included_list)
+    wf_logger.info("Run record screening for PICO %s", args.pico_idx)
+    processed_search_results = quicker.preprocess_search_results()
+    record_included_list = quicker.select_studies_by_record_screening(
+        processed_search_results=processed_search_results
+    )
+    write_json_file(record_output_path, record_included_list)
 
     manifest = build_pdf_manifest(
         papers=record_included_list,

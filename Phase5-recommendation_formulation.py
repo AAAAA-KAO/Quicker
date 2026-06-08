@@ -33,6 +33,8 @@ Phase5：推荐意见形成脚本。
     --supplementary_information：可选，推荐形成时补充给模型的信息。
     --transfer_evidence_assessment_files / --no-transfer_evidence_assessment_files：可选，
         是否先从 Phase4 复制 paperinfo/outcomeinfo。
+    --reuse_existing_result / --no-reuse_existing_result：可选，已有推荐形成结果时
+        是否直接复用，避免重新调用推荐模型。
     --print_state：可选，运行前打印临床问题与 comparator 列表。
     --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
     --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
@@ -53,6 +55,7 @@ from utils.cli_config import (
     config_path,
     get_nested,
     load_config,
+    load_valid_json_file,
     phase_config,
     prepare_environment,
     resolve_pico_idx,
@@ -149,6 +152,35 @@ def load_evidence_assessment_results(
         }
 
     return evidence_assessment_results
+
+
+def valid_recommendation_result(data: dict, pico_idx: str) -> bool:
+    required_keys = {
+        "disease",
+        "clinical_question",
+        "pico_idx",
+        "evidence_assessment_results",
+        "final_result",
+    }
+    return (
+        required_keys.issubset(data.keys())
+        and str(data.get("pico_idx")) == str(pico_idx)
+        and isinstance(data.get("evidence_assessment_results"), dict)
+        and data.get("final_result") not in (None, "")
+    )
+
+
+def find_reusable_recommendation_result(
+    recommendation_formation_path: str,
+    pico_idx: str,
+) -> Path | None:
+    output_dir = Path(recommendation_formation_path)
+    candidates = sorted(output_dir.glob(f"quicker_data(PICO_IDX{pico_idx})_*.json"))
+    for path in reversed(candidates):
+        data = load_valid_json_file(path, dict)
+        if data is not None and valid_recommendation_result(data, pico_idx):
+            return path
+    return None
 
 
 def load_clinical_question(question_decomposition_path: str, pico_idx: str) -> str:
@@ -273,6 +305,14 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         phase_settings.get("transfer_evidence_assessment_files"),
         "transfer_evidence_assessment_files/pipeline.phase5_recommendation_formulation.transfer_evidence_assessment_files",
     )
+    args.reuse_existing_result = choose(
+        args.reuse_existing_result,
+        phase_settings.get("reuse_existing_result"),
+        "reuse_existing_result/pipeline.phase5_recommendation_formulation.reuse_existing_result",
+        required=False,
+    )
+    if args.reuse_existing_result is None:
+        args.reuse_existing_result = True
     if args.print_state is None:
         args.print_state = False
     if args.supplementary_information is None:
@@ -284,6 +324,15 @@ def run(args: argparse.Namespace) -> None:
     config = load_config(args.YOUR_CONFIG_PATH)
     args = resolve_args(args, config)
     prepare_environment(args, config)
+
+    if args.reuse_existing_result:
+        existing_result = find_reusable_recommendation_result(
+            recommendation_formation_path=args.YOUR_RECOMMENDATION_FORMATION_PATH,
+            pico_idx=args.pico_idx,
+        )
+        if existing_result is not None:
+            print(f"Existing recommendation formulation result reused: {existing_result}")
+            return
 
     if args.transfer_evidence_assessment_files:
         transfer_outcome_and_paperinfo(
@@ -400,6 +449,12 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Copy matching outcomeinfo/paperinfo files before running.",
+    )
+    parser.add_argument(
+        "--reuse_existing_result",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Reuse an existing recommendation result for this PICO.",
     )
     parser.add_argument(
         "--print_state",

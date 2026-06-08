@@ -43,6 +43,8 @@ Phase3 第二阶段：全文评估脚本。
     --missing_pdf_json_path：可选，缺失 PDF 清单 JSON 输出路径。
     --missing_pdf_markdown_path：可选，缺失 PDF 清单 Markdown 输出路径。
     --stop_when_missing_pdf / --no-stop_when_missing_pdf：可选，缺失 PDF 时是否停止。
+    --reuse_existing_outputs / --no-reuse_existing_outputs：可选，已有全文评估输出时
+        是否直接复用，避免重新抽取全文。
     --print_state：可选，打印 QuickerData 阶段状态。
     --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
     --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
@@ -60,6 +62,7 @@ from utils.cli_config import (
     get_nested,
     load_config,
     load_json_file,
+    load_valid_json_file,
     phase_config,
     prepare_environment,
     resolve_dataset_path,
@@ -94,6 +97,82 @@ def load_record_included_list(path: str) -> list[dict]:
         "record_included_input_path must contain a JSON list or a JSON object "
         "with record_included_studies."
     )
+
+
+def full_text_results_dir(
+    study_selection_path: str,
+    full_text_assessment_method: str,
+    pico_idx: str,
+) -> Path:
+    return (
+        Path(study_selection_path)
+        / "Results"
+        / "full_text_assessment"
+        / full_text_assessment_method
+        / pico_idx
+    )
+
+
+def valid_full_text_result(data: dict, pico_idx: str) -> bool:
+    required_keys = {
+        "record_included_studies",
+        "full_text_included_studies",
+        "total_outcome_list",
+    }
+    return (
+        str(data.get("pico_idx")) == str(pico_idx)
+        and required_keys.issubset(data.keys())
+        and isinstance(data.get("record_included_studies"), list)
+        and isinstance(data.get("full_text_included_studies"), list)
+        and isinstance(data.get("total_outcome_list"), list)
+    )
+
+
+def paired_full_text_outputs(study_selection_path: str, pico_idx: str) -> list[tuple[Path, Path]]:
+    base_path = Path(study_selection_path)
+    paper_folder = base_path / "paperinfo"
+    outcome_folder = base_path / "outcomeinfo"
+    if not paper_folder.exists() or not outcome_folder.exists():
+        return []
+
+    paper_prefix = f"paperinfo_PICO{pico_idx}"
+    outcome_prefix = f"outcomeinfo_PICO{pico_idx}"
+    pairs = []
+    for paper_path in sorted(paper_folder.glob(f"{paper_prefix}*.json")):
+        if "_full_text_assessed_but_not_included" in paper_path.name:
+            continue
+        postfix = paper_path.stem[len(paper_prefix):]
+        outcome_path = outcome_folder / f"{outcome_prefix}{postfix}.json"
+        if (
+            load_valid_json_file(paper_path, list) is not None
+            and load_valid_json_file(outcome_path, list) is not None
+        ):
+            pairs.append((paper_path, outcome_path))
+    return pairs
+
+
+def find_reusable_full_text_result(
+    study_selection_path: str,
+    full_text_assessment_method: str,
+    pico_idx: str,
+) -> tuple[Path | None, list[tuple[Path, Path]]]:
+    result_dir = full_text_results_dir(
+        study_selection_path,
+        full_text_assessment_method,
+        pico_idx,
+    )
+    result_files = sorted(result_dir.glob(f"quicker_data(PICO_IDX{pico_idx})_*.json"))
+    valid_results = [
+        path
+        for path in result_files
+        if (
+            (data := load_valid_json_file(path, dict)) is not None
+            and valid_full_text_result(data, pico_idx)
+        )
+    ]
+    if not valid_results:
+        return None, []
+    return valid_results[-1], paired_full_text_outputs(study_selection_path, pico_idx)
 
 
 def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
@@ -162,6 +241,14 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         pdf_settings.get("stop_when_missing_pdf"),
         "stop_when_missing_pdf/pipeline.pdf_handling.stop_when_missing_pdf",
     )
+    args.reuse_existing_outputs = choose(
+        args.reuse_existing_outputs,
+        phase_settings.get("reuse_existing_outputs"),
+        "reuse_existing_outputs/pipeline.phase3_study_selection.reuse_existing_outputs",
+        required=False,
+    )
+    if args.reuse_existing_outputs is None:
+        args.reuse_existing_outputs = True
     args.quickerdata_ls_path = choose(
         args.quickerdata_ls_path,
         str(Path(args.YOUR_DATASET_PATH) / f"quicker_data(PICO_IDX{args.pico_idx})_ls.json"),
@@ -240,6 +327,20 @@ def run(args: argparse.Namespace) -> None:
     )
     wf_logger = get_workflow_logger(__name__)
     dt_logger = get_detail_logger(__name__)
+
+    if args.reuse_existing_outputs:
+        reusable_result, output_pairs = find_reusable_full_text_result(
+            study_selection_path=args.YOUR_STUDY_SELECTION_PATH,
+            full_text_assessment_method=args.full_text_assessment_method,
+            pico_idx=args.pico_idx,
+        )
+        if reusable_result is not None:
+            wf_logger.info("Reuse existing full text assessment result: %s", reusable_result)
+            print(f"Existing full text assessment result reused: {reusable_result}")
+            for paper_path, outcome_path in output_pairs:
+                print(f"Existing paper info: {paper_path}")
+                print(f"Existing outcome info: {outcome_path}")
+            return
 
     record_included_list = load_record_included_list(args.record_included_input_path)
     manifest = build_pdf_manifest(
@@ -341,6 +442,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--missing_pdf_markdown_path", default=None)
     parser.add_argument(
         "--stop_when_missing_pdf",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--reuse_existing_outputs",
         action=argparse.BooleanOptionalAction,
         default=None,
     )

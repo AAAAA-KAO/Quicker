@@ -130,6 +130,16 @@ def transfer_outcome_and_paperinfo(
                 if f"_PICO{only_index}" not in item.name:
                     continue
                 target_item = target_folder / item.name
+                if folder_name == "outcomeinfo" and is_assessed_outcomeinfo(target_item):
+                    continue
+                if folder_name == "paperinfo":
+                    target_outcome = (
+                        target_dir
+                        / "outcomeinfo"
+                        / item.name.replace("paperinfo_", "outcomeinfo_", 1)
+                    )
+                    if target_item.exists() and is_assessed_outcomeinfo(target_outcome):
+                        continue
                 if item.is_dir():
                     shutil.copytree(item, target_item, dirs_exist_ok=True)
                 else:
@@ -252,6 +262,35 @@ def outcomeinfo_score(path: Path) -> int:
         ):
             score += 100
     return score
+
+
+def is_assessed_outcomeinfo(path: Path) -> bool:
+    return path.exists() and outcomeinfo_score(path) >= 100
+
+
+def outcomeinfo_comparator(path: Path) -> Optional[str]:
+    try:
+        outcomes = load_json(path)
+    except Exception:
+        return None
+    if not isinstance(outcomes, list) or not outcomes:
+        return None
+    comparator = outcomes[0].get("comparator")
+    return str(comparator) if comparator else None
+
+
+def assessed_outputs_by_comparator(
+    evidence_assessment_path: str,
+    pico_idx: str,
+) -> Dict[str, Path]:
+    outputs: Dict[str, Path] = {}
+    for path in iter_outcomeinfo_files(evidence_assessment_path, pico_idx):
+        if not is_assessed_outcomeinfo(path):
+            continue
+        comparator = outcomeinfo_comparator(path)
+        if comparator:
+            outputs[comparator] = path
+    return outputs
 
 
 def assessed_outputs_exist(evidence_assessment_path: str, pico_idx: str) -> list[Path]:
@@ -401,6 +440,46 @@ def run(args: argparse.Namespace) -> None:
     wf_logger = get_workflow_logger(__name__)
     dt_logger = get_detail_logger(__name__)
 
+    pico = None
+    comparisons = None
+    existing_assessed_outputs: Dict[str, Path] = {}
+    if args.reuse_existing_outputs:
+        existing_assessed_outputs = assessed_outputs_by_comparator(
+            args.YOUR_EVIDENCE_ASSESSMENT_PATH,
+            args.pico_idx,
+        )
+        if args.comparator and args.comparator in existing_assessed_outputs:
+            path = existing_assessed_outputs[args.comparator]
+            wf_logger.info("Skip assessed comparator %s: %s", args.comparator, path)
+            print(f"Existing assessed output reused: {path}")
+            return
+        if existing_assessed_outputs and not args.comparator:
+            try:
+                pico = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
+                comparisons = [str(item) for item in pico.get("C", [])]
+            except FileNotFoundError:
+                wf_logger.info(
+                    "Skip evidence assessment because assessed outputs exist and "
+                    "PICO metadata is unavailable."
+                )
+                for path in existing_assessed_outputs.values():
+                    print(f"Existing assessed output reused: {path}")
+                return
+            if comparisons and all(
+                comparator in existing_assessed_outputs
+                for comparator in comparisons
+            ):
+                wf_logger.info(
+                    "Skip evidence assessment because all comparators already have "
+                    "assessed outputs."
+                )
+                for comparator in comparisons:
+                    print(
+                        "Existing assessed output reused: "
+                        f"{existing_assessed_outputs[comparator]}"
+                    )
+                return
+
     copied_inputs = []
     if args.transfer_study_selection_files:
         copied_inputs = transfer_outcome_and_paperinfo(
@@ -410,22 +489,11 @@ def run(args: argparse.Namespace) -> None:
         )
         dt_logger.info("Copied Phase3 inputs: %s", [str(path) for path in copied_inputs])
 
-    if args.reuse_existing_outputs:
-        existing_outputs = assessed_outputs_exist(
-            args.YOUR_EVIDENCE_ASSESSMENT_PATH,
-            args.pico_idx,
-        )
-        if existing_outputs:
-            wf_logger.info(
-                "Evidence assessment skipped because assessed outputs already exist."
-            )
-            for path in existing_outputs:
-                print(f"Existing assessed output: {path}")
-            return
-
     Quicker, QuickerData, QuickerStage = import_quicker_dependencies()
-    pico = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
-    comparisons = [str(item) for item in pico.get("C", [])]
+    if pico is None:
+        pico = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
+    if comparisons is None:
+        comparisons = [str(item) for item in pico.get("C", [])]
     if args.comparator:
         comparisons = [args.comparator]
     if not comparisons:
@@ -463,6 +531,12 @@ def run(args: argparse.Namespace) -> None:
 
     input_postfix_map = build_input_postfix_map(args, config)
     assessed_comparators = []
+    skipped_comparators = []
+    if args.reuse_existing_outputs:
+        existing_assessed_outputs = assessed_outputs_by_comparator(
+            args.YOUR_EVIDENCE_ASSESSMENT_PATH,
+            args.pico_idx,
+        )
 
     wf_logger.info(
         "Run evidence assessment for PICO %s with %s comparator(s).",
@@ -470,6 +544,13 @@ def run(args: argparse.Namespace) -> None:
         len(comparisons),
     )
     for comparator in comparisons:
+        if args.reuse_existing_outputs and comparator in existing_assessed_outputs:
+            path = existing_assessed_outputs[comparator]
+            skipped_comparators.append(comparator)
+            wf_logger.info("Skip assessed comparator %s: %s", comparator, path)
+            print(f"Existing assessed output reused: {path}")
+            continue
+
         input_postfix = resolve_input_postfix(
             evidence_assessment_path=args.YOUR_EVIDENCE_ASSESSMENT_PATH,
             pico_idx=args.pico_idx,
@@ -506,6 +587,9 @@ def run(args: argparse.Namespace) -> None:
         assessed_comparators.append(comparator)
 
     if not assessed_comparators:
+        if skipped_comparators:
+            print(f"Skipped assessed comparators: {skipped_comparators}")
+            return
         raise RuntimeError("No comparator was assessed.")
 
     outputs = list(iter_outcomeinfo_files(args.YOUR_EVIDENCE_ASSESSMENT_PATH, args.pico_idx))

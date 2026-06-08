@@ -148,7 +148,7 @@
             "continuous_outcomes": []
         },
         "phase5_recommendation_formulation": {
-            "reuse_existing_result": false,
+            "reuse_existing_result": true,
             "transfer_evidence_assessment_files": true,
             "require_assessed_evidence": true,
             "overall_certainty": "LOW",

@@ -31,6 +31,8 @@ Phase2：文献检索脚本。
     --use_agent / --no-use_agent：可选，是否使用 agentic 检索策略生成。
     --invalid_publication_types：可选，JSON 字符串或 JSON 文件路径，指定需剔除的出版类型列表。
     --quicker_data_output_path：可选，Phase2 汇总输出 JSON 路径。
+    --reuse_existing_quicker_data / --no-reuse_existing_quicker_data：可选，是否复用
+        已存在的 Phase2 汇总输出或原始检索结果，避免重新检索。
     --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
     --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
 """
@@ -49,6 +51,7 @@ from utils.cli_config import (
     config_path,
     get_nested,
     load_config,
+    load_valid_json_file,
     phase_config,
     prepare_environment,
     resolve_dataset_path,
@@ -126,6 +129,14 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         "invalid_publication_types",
         expected_type=list,
     )
+    args.reuse_existing_quicker_data = choose(
+        args.reuse_existing_quicker_data,
+        phase_settings.get("reuse_existing_quicker_data"),
+        "reuse_existing_quicker_data/pipeline.phase2_literature_search.reuse_existing_quicker_data",
+        required=False,
+    )
+    if args.reuse_existing_quicker_data is None:
+        args.reuse_existing_quicker_data = True
     args.quicker_data_output_path = choose(
         args.quicker_data_output_path,
         str(Path(args.YOUR_DATASET_PATH) / f"quicker_data(PICO_IDX{args.pico_idx})_ls.json"),
@@ -159,9 +170,42 @@ def filter_search_results(search_results: list[dict], invalid_publication_types:
     ]
 
 
-def run(args: argparse.Namespace) -> None:
-    from utils.Evidence_Retrieval.pubmedretrieval import PubMedRetrieval
+def is_reusable_quicker_data(
+    data: dict,
+    pico_idx: str,
+    clinical_question: str,
+) -> bool:
+    required_keys = {
+        "disease",
+        "clinical_question",
+        "pico_idx",
+        "population",
+        "intervention",
+        "comparison",
+        "outcome",
+        "search_results",
+    }
+    return (
+        required_keys.issubset(data.keys())
+        and str(data.get("pico_idx")) == str(pico_idx)
+        and (
+            clinical_question is None
+            or data.get("clinical_question") == clinical_question
+        )
+        and isinstance(data.get("search_results"), list)
+    )
 
+
+def load_reusable_search_results(path: Path) -> list[dict] | None:
+    data = load_valid_json_file(path, expected_type=list)
+    if data is None:
+        return None
+    if not all(isinstance(record, dict) for record in data):
+        return None
+    return data
+
+
+def run(args: argparse.Namespace) -> None:
     config = load_config(args.YOUR_CONFIG_PATH)
     args = resolve_args(args, config)
     log_dir = prepare_environment(args, config)
@@ -180,6 +224,20 @@ def run(args: argparse.Namespace) -> None:
     dt_logger = get_detail_logger(__name__)
 
     model_config = get_nested(config, ("model", "literature_search_model"), {})
+    output_path = Path(args.quicker_data_output_path)
+    if args.reuse_existing_quicker_data:
+        existing_quicker_data = load_valid_json_file(output_path, expected_type=dict)
+        configured_clinical_question = get_nested(config, ("pipeline", "clinical_question"))
+        if existing_quicker_data and is_reusable_quicker_data(
+            existing_quicker_data,
+            args.pico_idx,
+            configured_clinical_question
+            or existing_quicker_data.get("clinical_question"),
+        ):
+            wf_logger.info("Reuse existing literature-search data: %s", output_path)
+            print(f"Existing literature-search data reused: {output_path}")
+            return
+
     original_qd_dict = load_pico(args.YOUR_QUESTION_DECOMPOSITION_PATH, args.pico_idx)
 
     clinical_question = original_qd_dict["Question"]
@@ -193,38 +251,47 @@ def run(args: argparse.Namespace) -> None:
         model_name,
         "use_agent_" + str(args.use_agent),
     )
-
-    wf_logger.info(
-        "Initializing PubMedRetrieval for %s with PICO %s",
-        args.disease,
-        args.pico_idx,
-    )
-    retriever = PubMedRetrieval(
-        disease=args.disease,
-        clinical_question=clinical_question,
-        population=population,
-        intervention=intervention,
-        comparison=comparison,
-        api_key=model_config["API_KEY"],
-        base_url=model_config["BASE_URL"],
-        model_setting={
-            "search_term_formation": model_name,
-            "search_strategy_formation": model_name,
-        },
-        use_agent=args.use_agent,
-        save_path=save_path,
-        pico_idx=args.pico_idx,
-        filters=args.filters,
-        additional_parameters=args.additional_parameters,
-    )
-
-    wf_logger.info("Executing PubMedRetrieval")
-    retriever.run()
-    dt_logger.info("Search terms: %s", retriever.search_terms)
-
     save_results_path = Path(save_path) / f"PICO{args.pico_idx}.json"
-    with save_results_path.open("r", encoding="utf-8") as file:
-        raw_search_results = json.load(file)
+
+    raw_search_results = None
+    if args.reuse_existing_quicker_data:
+        raw_search_results = load_reusable_search_results(save_results_path)
+        if raw_search_results is not None:
+            wf_logger.info("Reuse existing raw PubMed results: %s", save_results_path)
+
+    if raw_search_results is None:
+        from utils.Evidence_Retrieval.pubmedretrieval import PubMedRetrieval
+
+        wf_logger.info(
+            "Initializing PubMedRetrieval for %s with PICO %s",
+            args.disease,
+            args.pico_idx,
+        )
+        retriever = PubMedRetrieval(
+            disease=args.disease,
+            clinical_question=clinical_question,
+            population=population,
+            intervention=intervention,
+            comparison=comparison,
+            api_key=model_config["API_KEY"],
+            base_url=model_config["BASE_URL"],
+            model_setting={
+                "search_term_formation": model_name,
+                "search_strategy_formation": model_name,
+            },
+            use_agent=args.use_agent,
+            save_path=save_path,
+            pico_idx=args.pico_idx,
+            filters=args.filters,
+            additional_parameters=args.additional_parameters,
+        )
+
+        wf_logger.info("Executing PubMedRetrieval")
+        retriever.run()
+        dt_logger.info("Search terms: %s", retriever.search_terms)
+
+        with save_results_path.open("r", encoding="utf-8") as file:
+            raw_search_results = json.load(file)
 
     wf_logger.info("Filter duplicate, no-abstract, or invalid publication-type records")
     dt_logger.info("Total records: %s", len(raw_search_results))
@@ -245,7 +312,6 @@ def run(args: argparse.Namespace) -> None:
         "search_results": search_results,
     }
 
-    output_path = Path(args.quicker_data_output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as file:
         json.dump(quicker_data, file, indent=4, ensure_ascii=False)
@@ -271,6 +337,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--invalid_publication_types", default=None)
     parser.add_argument("--quicker_data_output_path", default=None)
+    parser.add_argument(
+        "--reuse_existing_quicker_data",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
     return parser
 
 

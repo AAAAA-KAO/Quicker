@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quicker Clinical QA</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="query-panel">
+        <div class="brand-row">
+          <div>
+            <h1>Quicker Clinical QA</h1>
+            <p>检索优先 · 按需推理 · 阶段可控</p>
+          </div>
+          <div id="healthBadge" class="status-pill">connecting</div>
+        </div>
+
+        <form id="askForm" class="question-form">
+          <label for="diseaseSelect">疾病</label>
+          <select id="diseaseSelect" name="disease"></select>
+
+          <label for="questionInput">临床问题</label>
+          <textarea
+            id="questionInput"
+            name="question"
+            rows="6"
+            placeholder="Should pediatric patients with suspected appendicitis be diagnosed by clinical scores alone?"
+          ></textarea>
+
+          <div class="form-actions">
+            <button id="submitBtn" type="submit">提交</button>
+            <button id="sampleBtn" type="button" class="secondary">RA 示例</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 id="workspaceTitle">响应工作台</h2>
+            <p id="workspaceSubtitle">等待输入临床问题</p>
+          </div>
+          <div id="taskBadge" class="status-pill muted">idle</div>
+        </div>
+
+        <div id="answerPanel" class="result-panel hidden">
+          <h3>知识库答案</h3>
+          <div id="answerText" class="answer-text"></div>
+          <details>
+            <summary>路由与候选证据</summary>
+            <pre id="evidenceJson"></pre>
+          </details>
+        </div>
+
+        <div id="taskPanel" class="task-grid hidden">
+          <section class="stage-column">
+            <h3>阶段状态</h3>
+            <div id="stageList" class="stage-list"></div>
+          </section>
+
+          <section class="detail-column">
+            <div id="stageHistoryPanel" class="result-panel hidden">
+              <h3 id="stageHistoryTitle">阶段结果</h3>
+              <div id="stageHistoryText" class="answer-text"></div>
+              <details open>
+                <summary>阶段日志</summary>
+                <pre id="stageHistoryJson"></pre>
+              </details>
+            </div>
+
+            <div id="finalPanel" class="result-panel hidden">
+              <h3>最终推荐</h3>
+              <div id="finalRecommendation" class="answer-text"></div>
+              <details>
+                <summary>完整推荐结果</summary>
+                <pre id="finalJson"></pre>
+              </details>
+            </div>
+
+            <!-- Phase1: PICO Review -->
+            <div id="picoEditorPanel" class="review-panel hidden">
+              <div class="panel-title-row">
+                <h3>Phase1 · PICO 分解</h3>
+                <button id="continuePicoBtn" type="button">确认并继续</button>
+              </div>
+              <textarea id="picoEditor" spellcheck="false"></textarea>
+              <div id="picoError" class="inline-error"></div>
+            </div>
+
+            <!-- Phase2: Literature Search Review -->
+            <div id="phase2ReviewPanel" class="review-panel hidden">
+              <div class="panel-title-row">
+                <h3>Phase2 · 文献检索结果</h3>
+                <button id="continuePhase2Btn" type="button">确认并继续</button>
+              </div>
+              <div class="stat-row">
+                <span class="stat-badge info">共检索到 <strong id="lsTotalCount">0</strong> 篇文献</span>
+              </div>
+              <div id="lsSampleList" class="paper-sample-list"></div>
+            </div>
+
+            <!-- Phase3: Screening Review + PDF Upload -->
+            <div id="pdfPanel" class="review-panel hidden">
+              <div class="panel-title-row">
+                <h3>Phase3 · 题录筛选</h3>
+                <button id="continuePdfBtn" type="button">确认并继续</button>
+              </div>
+
+              <!-- Screening Summary -->
+              <div class="stat-row" id="screeningStats">
+                <span class="stat-badge info">筛选总数: <strong id="scTotalScreened">0</strong></span>
+                <span class="stat-badge success">纳入: <strong id="scTotalIncluded">0</strong></span>
+                <span class="stat-badge warning">排除: <strong id="scTotalExcluded">0</strong></span>
+              </div>
+              <div id="scSampleList" class="paper-sample-list"></div>
+
+              <!-- PDF Upload Section -->
+              <div id="pdfUploadSection" class="upload-strip">
+                <span id="pdfStatusIcon">PDF</span>
+                <span id="pdfStatusText">等待加载文献信息</span>
+              </div>
+              <div class="upload-strip" id="pdfFileRow">
+                <input id="pdfInput" type="file" multiple accept="application/pdf,.pdf" />
+                <button id="uploadBtn" type="button" class="secondary">上传 PDF</button>
+              </div>
+              <div id="uploadStatus" class="small-note"></div>
+              <div id="missingPdfList" class="paper-sample-list"></div>
+
+              <div class="split-json">
+                <details open>
+                  <summary>纳入文献列表</summary>
+                  <pre id="recordJson"></pre>
+                </details>
+                <details open>
+                  <summary>PDF 清单</summary>
+                  <pre id="manifestJson"></pre>
+                </details>
+              </div>
+            </div>
+
+            <div class="log-panel">
+              <div class="panel-title-row">
+                <h3>实时日志</h3>
+                <button id="clearLogBtn" type="button" class="secondary">清空视图</button>
+              </div>
+              <div id="eventLog" class="event-log"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

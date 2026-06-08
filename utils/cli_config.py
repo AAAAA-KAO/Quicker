@@ -19,6 +19,24 @@ def load_json_file(path: str | Path) -> Any:
         return json.load(file)
 
 
+def load_valid_json_file(
+    path: str | Path,
+    expected_type: type | tuple[type, ...] | None = None,
+) -> Any | None:
+    json_path = Path(path)
+    if not json_path.exists() or json_path.stat().st_size == 0:
+        return None
+
+    try:
+        data = load_json_file(json_path)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if expected_type and not isinstance(data, expected_type):
+        return None
+    return data
+
+
 def write_json_file(path: str | Path, data: Any) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -160,4 +178,3 @@ def resolve_reports_path(args: argparse.Namespace, config: dict) -> str:
         config_path(config, "reports"),
         "YOUR_REPORTS_PATH/pipeline.paths.reports",
     )
-
