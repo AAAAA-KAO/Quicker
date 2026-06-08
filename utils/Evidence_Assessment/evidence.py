@@ -336,7 +336,19 @@ class Evidence:
         This function is used to assess the outcome based on the systematic review papers.
         Specifically, it should use the systematic review papers to assess the outcome.
         '''
-        logging.error('Systematic review assessment has not been implemented yet')
+        logging.warning(
+            'Systematic review assessment has not been implemented yet; '
+            'skipping %s systematic review paper(s).',
+            len(paper_list),
+        )
+        outcome.update_assessment_results(
+            assessment_name='Systematic Review',
+            sub_assessment_name='implementation_status',
+            sub_assessment_result=(
+                'Systematic review assessment has not been implemented yet; '
+                'this study design group was skipped.'
+            ),
+        )
         pass
 
     def assess_rct(self, outcome: Outcome, paper_list: List[Paper]):
@@ -366,7 +378,19 @@ class Evidence:
         This function is used to assess the outcome based on the cohort study papers.
         Specifically, it should use the cohort study papers to assess the outcome.
         '''
-        logging.error('Cohort study assessment has not been implemented yet')
+        logging.warning(
+            'Cohort study assessment has not been implemented yet; '
+            'skipping %s cohort/observational paper(s).',
+            len(paper_list),
+        )
+        outcome.update_assessment_results(
+            assessment_name='Cohort Study',
+            sub_assessment_name='implementation_status',
+            sub_assessment_result=(
+                'Cohort/observational study assessment has not been implemented yet; '
+                'this study design group was skipped.'
+            ),
+        )
         pass
 
     def assess_meta_analysis(self, outcome: Outcome, paper_list: List[Paper]):
@@ -374,7 +398,19 @@ class Evidence:
         This function is used to assess the outcome based on the meta analysis papers.
         Specifically, it should use the meta analysis papers to assess the outcome.
         '''
-        logging.error('Meta analysis assessment has not been implemented yet')
+        logging.warning(
+            'Meta analysis assessment has not been implemented yet; '
+            'skipping %s meta-analysis paper(s).',
+            len(paper_list),
+        )
+        outcome.update_assessment_results(
+            assessment_name='Meta-Analysis',
+            sub_assessment_name='implementation_status',
+            sub_assessment_result=(
+                'Meta-analysis assessment has not been implemented yet; '
+                'this study design group was skipped.'
+            ),
+        )
         pass
 
     def assess_evidence(self):

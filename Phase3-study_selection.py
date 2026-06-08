@@ -17,9 +17,9 @@ Phase3 第一阶段：题录筛选与 PDF 人工下载清单生成脚本。
 
 输出：
     1. record_included_output_path：题录筛选后进入全文评估的论文列表 JSON。
-    2. missing_pdf_json_path：缺失 PDF 清单 JSON。
-    3. missing_pdf_markdown_path：可选，缺失 PDF 清单 Markdown。
-    4. 题录筛选 CSV 结果，保存到 Study_Selection/Results/screening_records。
+    2. missing_pdf_json_path：缺失 PDF 清单 JSON，默认保存在
+        Study_Selection/record_included_studies。
+    3. 题录筛选 CSV 结果，保存到 Study_Selection/Results/screening_records。
 
 命令行参数：
     --YOUR_CONFIG_PATH：必填，项目配置文件路径。
@@ -28,7 +28,6 @@ Phase3 第一阶段：题录筛选与 PDF 人工下载清单生成脚本。
     --YOUR_LITERATURE_SEARCH_PATH：可选，Phase2 工作目录。
     --YOUR_STUDY_SELECTION_PATH：可选，Phase3 工作目录。
     --YOUR_PAPER_LIBRARY_PATH：可选，PDF 本地库目录。
-    --YOUR_REPORTS_PATH：可选，报告输出目录。
     --disease：可选，疾病/主题名称。
     --pico_idx：可选，PICO 编号；未传入或为 auto 时根据配置生成。
     --record_screening_method：可选，题录筛选方法。
@@ -40,7 +39,6 @@ Phase3 第一阶段：题录筛选与 PDF 人工下载清单生成脚本。
     --quickerdata_ls_path：可选，Phase2 汇总输出 JSON 路径。
     --record_included_output_path：可选，题录纳入论文列表输出路径。
     --missing_pdf_json_path：可选，缺失 PDF 清单 JSON 输出路径。
-    --missing_pdf_markdown_path：可选，缺失 PDF 清单 Markdown 输出路径。
     --reuse_existing_outputs / --no-reuse_existing_outputs：可选，是否复用已有题录筛选输出。
     --LOG_DIR：可选，日志目录；未传入时读取 config.logging.log_dir。
     --DOTENV_PATH：可选，.env 文件路径；未传入时不主动加载 .env。
@@ -63,12 +61,10 @@ from utils.cli_config import (
     prepare_environment,
     resolve_dataset_path,
     resolve_pico_idx,
-    resolve_reports_path,
     write_json_file,
 )
 from utils.pdf_manifest import (
     build_pdf_manifest,
-    resolve_manifest_path,
     write_pdf_manifest,
 )
 
@@ -86,10 +82,8 @@ def load_pico(question_decomposition_path: str, pico_idx: str) -> dict:
 
 def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
     phase_settings = phase_config(config, "phase3_study_selection")
-    pdf_settings = get_nested(config, ("pipeline", "pdf_handling"), {}) or {}
 
     args.YOUR_DATASET_PATH = resolve_dataset_path(args, config)
-    args.YOUR_REPORTS_PATH = resolve_reports_path(args, config)
     args.YOUR_QUESTION_DECOMPOSITION_PATH = choose(
         args.YOUR_QUESTION_DECOMPOSITION_PATH,
         config_path(config, "question_decomposition"),
@@ -170,23 +164,14 @@ def resolve_args(args: argparse.Namespace, config: dict) -> argparse.Namespace:
         "record_included_output_path",
     )
 
-    stage_name = "phase3_record_screening"
-    json_pattern = pdf_settings.get("missing_pdf_json")
-    markdown_pattern = pdf_settings.get("missing_pdf_markdown")
     args.missing_pdf_json_path = choose(
         args.missing_pdf_json_path,
-        resolve_manifest_path(args.YOUR_REPORTS_PATH, json_pattern, stage_name, args.pico_idx)
-        if json_pattern
-        else None,
+        str(
+            Path(args.YOUR_STUDY_SELECTION_PATH)
+            / "record_included_studies"
+            / f"missing_pdfs_phase3_record_screening_PICO{args.pico_idx}.json"
+        ),
         "missing_pdf_json_path",
-    )
-    args.missing_pdf_markdown_path = choose(
-        args.missing_pdf_markdown_path,
-        resolve_manifest_path(args.YOUR_REPORTS_PATH, markdown_pattern, stage_name, args.pico_idx)
-        if markdown_pattern
-        else None,
-        "missing_pdf_markdown_path",
-        required=False,
     )
     return args
 
@@ -276,17 +261,15 @@ def run(args: argparse.Namespace) -> None:
         pico_idx=args.pico_idx,
         stage="phase3_record_screening",
     )
-    json_output, markdown_output = write_pdf_manifest(
+    json_output, _ = write_pdf_manifest(
         manifest,
         json_path=args.missing_pdf_json_path,
-        markdown_path=args.missing_pdf_markdown_path,
+        markdown_path=None,
     )
 
     dt_logger.info("Record-included papers: %s", record_included_list)
     print(f"Record-included studies saved to: {record_output_path}")
     print(f"PDF manifest saved to: {json_output}")
-    if markdown_output:
-        print(f"PDF markdown guide saved to: {markdown_output}")
     print(f"Missing PDF count: {manifest['missing_pdf_count']}")
 
 
@@ -300,7 +283,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--YOUR_LITERATURE_SEARCH_PATH", default=None)
     parser.add_argument("--YOUR_STUDY_SELECTION_PATH", default=None)
     parser.add_argument("--YOUR_PAPER_LIBRARY_PATH", default=None)
-    parser.add_argument("--YOUR_REPORTS_PATH", default=None)
     parser.add_argument("--disease", default=None)
     parser.add_argument("--pico_idx", default=None)
     parser.add_argument("--record_screening_method", default=None)
@@ -312,7 +294,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--quickerdata_ls_path", default=None)
     parser.add_argument("--record_included_output_path", default=None)
     parser.add_argument("--missing_pdf_json_path", default=None)
-    parser.add_argument("--missing_pdf_markdown_path", default=None)
     parser.add_argument(
         "--reuse_existing_outputs",
         action=argparse.BooleanOptionalAction,

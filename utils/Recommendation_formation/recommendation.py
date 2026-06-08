@@ -125,11 +125,13 @@ class Recommendation:
 
         grade_result = outcome['assessment_results']['GRADE']
         study_design = grade_result['Study design']
-        if (
-            study_design == 'Randomized Controlled Trial'
-            or study_design == 'Observational Study'
-            or study_design == "RANDOMIZED_CONTROLLED_TRIAL"
-        ):
+        study_design_key = str(study_design).upper().replace(" ", "_").replace("-", "_")
+        if study_design_key in {
+            'RANDOMIZED_CONTROLLED_TRIAL',
+            'OBSERVATIONAL_STUDY',
+            'COHORT_STUDY',
+            'OTHER_OBSERVATIONAL_STUDY',
+        }:
             importance = 'Importance: ' + str(
                 outcome.get('importance', 'Not reported')
             )
@@ -158,7 +160,7 @@ class Recommendation:
                 certainty=certainty,
                 result_interpretation=result_interpretation,
             )
-        elif study_design == "Systematic Review":
+        elif study_design_key in {'SYSTEMATIC_REVIEW', 'META_ANALYSIS'}:
             importance = ''
             no_of_participants = ''
             certainty = ''
@@ -177,7 +179,35 @@ class Recommendation:
                 result_interpretation=result_interpretation,
             )
         else:
-            raise NotImplementedError
+            importance = 'Importance: ' + str(
+                outcome.get('importance', 'Not reported')
+            )
+            no_of_participants = (
+                'Number of participants: \n'
+                + self.get_formatted_participants(
+                    grade_result.get('No of participants')
+                )
+            )
+            certainty = (
+                'The certainty of the evidence: '
+                + str(grade_result.get('Certainty', 'Not reported'))
+            )
+            effect = 'Effect: \n' + self.get_formatted_effect(
+                grade_result.get('Effect')
+            )
+            result_interpretation = grade_result.get(
+                'result_interpretation', 'Not reported'
+            )
+            return OUTCOME_INFORMATION_TEMPLATE.format(
+                outcome=outcome_name,
+                study_number=study_number,
+                importance=importance,
+                study_design=study_design,
+                no_of_participants=no_of_participants,
+                effect=effect,
+                certainty=certainty,
+                result_interpretation=result_interpretation,
+            )
 
     def get_formatted_effect(self, effect_dict: dict) -> str:
         if not effect_dict:

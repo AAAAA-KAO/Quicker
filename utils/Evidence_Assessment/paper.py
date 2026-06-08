@@ -467,6 +467,9 @@ class Paper:
             raise ValueError("PDF file does not exist.")
 
         collection_name = f"paper_{self.paper_uid}_vector"
+        if getattr(self, "vector_store", None) is not None:
+            return self.vector_store
+
         should_create_vectorstore = not self.is_vectorstore_created
 
         if self.is_vectorstore_created:

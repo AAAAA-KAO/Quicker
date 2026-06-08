@@ -9,3 +9,4 @@ papers/
 data
 vibe_prompts/
 .DS_Store
+.vscode

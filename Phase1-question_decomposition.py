@@ -51,15 +51,46 @@ from utils.cli_config import (
 
 
 def get_question_decomposition_output_model():
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel, Field, model_validator
 
     class QuestionDecompositionOutput(BaseModel):
         P: list[str] = Field(description="The population of the question")
         I: list[str] = Field(description="The intervention of the question")
         C: list[str] = Field(description="The comparison of the question")
-        O: dict[str, list[str]] = Field(description="The outcome of the question")
+        O: dict[str, list[str]] = Field(
+            description=(
+                "Outcomes grouped by comparator. The keys must exactly match "
+                "the strings in C, and each value must be a list of outcomes "
+                "for that comparator."
+            )
+        )
+
+        @model_validator(mode="after")
+        def validate_outcome_keys(self):
+            comparison_set = set(self.C)
+            outcome_key_set = set(self.O.keys())
+            if len(comparison_set) != len(self.C):
+                raise ValueError("C must not contain duplicate comparison values.")
+            if comparison_set != outcome_key_set:
+                missing = [comparison for comparison in self.C if comparison not in self.O]
+                extra = [key for key in self.O if key not in comparison_set]
+                raise ValueError(
+                    "O must be a dict whose keys exactly match C. "
+                    f"Missing keys: {missing}; extra keys: {extra}"
+                )
+            return self
 
     return QuestionDecompositionOutput
+
+
+def validate_pico_structure(pico_dict: dict) -> None:
+    output_model = get_question_decomposition_output_model()
+    output_model(
+        P=pico_dict.get("P"),
+        I=pico_dict.get("I"),
+        C=pico_dict.get("C"),
+        O=pico_dict.get("O"),
+    )
 
 
 def load_pico_list(pico_file_path: Path) -> list[dict]:
@@ -113,7 +144,7 @@ def build_question_decomposition_model(config: dict):
         raise NotImplementedError(f"Provider {provider} is not implemented")
 
     model_kwargs = {
-        "openai_api_key": model_config["API_KEY"],
+        "api_key": model_config["API_KEY"],
         "base_url": model_config["BASE_URL"],
         "model": model_config["model_name"],
     }
@@ -151,11 +182,32 @@ def run(args: argparse.Namespace) -> None:
     output_dir = Path(args.YOUR_QUESTION_DECOMPOSITION_PATH)
     pico_file_path = output_dir / "PICO_Information.json"
     pico_list = load_pico_list(pico_file_path)
-    if args.reuse_existing_pico and any(
-        str(item.get("Index")) == args.pico_idx for item in pico_list
-    ):
-        print(f"Existing PICO found and reused: {args.pico_idx}")
+    matching_picos = [
+        item for item in pico_list if str(item.get("Index")) == args.pico_idx
+    ]
+    valid_matching_picos = []
+    invalid_matching_count = 0
+    for pico in matching_picos:
+        try:
+            validate_pico_structure(pico)
+            valid_matching_picos.append(pico)
+        except ValueError as exc:
+            invalid_matching_count += 1
+            print(f"Invalid existing PICO ignored for regeneration: {exc}")
+
+    if args.reuse_existing_pico and valid_matching_picos:
+        print(f"Existing valid PICO found and reused: {args.pico_idx}")
         return
+
+    if matching_picos:
+        pico_list = [
+            item for item in pico_list if str(item.get("Index")) != args.pico_idx
+        ]
+        if invalid_matching_count:
+            print(
+                "Removed invalid existing PICO entry before regenerating: "
+                f"{args.pico_idx}"
+            )
 
     wf_logger.info("Start to decompose the question: %s", args.clinical_question)
     wf_logger.info("Use question decomposition method: %s", args.method)
@@ -182,6 +234,7 @@ def run(args: argparse.Namespace) -> None:
         "C": generation.C,
         "O": generation.O,
     }
+    validate_pico_structure(pico_dict)
     dt_logger.info("PICO result: %s", pico_dict)
 
     pico_list.append(pico_dict)

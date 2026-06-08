@@ -8,7 +8,10 @@ BACKGROUND = 'You need to decompose the question from clinical guidelines accord
 DEMAND = 'Please follow the example below to answer, ensuring that no false information is fabricated. '
 
 # format（zero shot）
-FORMAT = "You should answer the question with the given PICO format, which are some dictionaries. Note that every dictionary only has ONE KEY(String) and ONE VALUE(String). The key is the initial of the PICO, and the value is the content of the PICO. The content you generate will be directly decoded using Python's JSON library (json.load()). "
+FORMAT = """You must return one JSON object with exactly four top-level keys: P, I, C, and O.
+P, I, and C must be arrays of strings.
+O must be an object whose keys exactly match the strings in C. Each O value must be an array of outcome strings for that specific comparator.
+Do not use generic O keys such as "outcome", "outcomes", or "all outcomes". If C has two elements, O must have those exact two elements as keys. """
 
 EXPERIENCE_BACKGROUND = 'You will be provided with a original problem to be deconstructed using the PICO method, along with two versions already deconstructed using PICO: one by a human domain expert and one by AI. '
 

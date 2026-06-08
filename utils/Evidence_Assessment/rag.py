@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from typing import List, Dict
 from langchain_core.runnables import (
     RunnablePassthrough,
@@ -12,6 +13,18 @@ from utils.Evidence_Assessment.paper import Paper
 from utils.Evidence_Assessment.outcome import Outcome
 
 RETRIEVAL_AMOUNT = 5
+
+
+def _component_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(_component_text(item) for item in value.values()).strip()
+    if isinstance(value, Iterable):
+        return " ".join(_component_text(item) for item in value).strip()
+    return str(value)
 
 
 class LineListOutputParser(BaseOutputParser[List[str]]):
@@ -384,6 +397,10 @@ def assess_risk_of_bias_for_rcts(
     additional_rules = additional_requirements_for_GRADE_rob_rcts.get(
         'additional_requirements', None
     )
+    population_text = _component_text(outcome.population)
+    intervention_text = _component_text(outcome.intervention)
+    comparator_text = _component_text(outcome.comparator)
+    outcome_text = _component_text(outcome.outcome)
 
     # combine all papers and assess risk of bias for RCTs: input: List[{paper_limitations:prompts, paper_basic_info:prompts}]. output: prompts
     assess_risk_of_bias_for_rcts_chain = {
@@ -404,10 +421,10 @@ def assess_risk_of_bias_for_rcts(
             )
         )
         # .assign(clinical_question=lambda inputs: outcome.clinical_question)
-        .assign(population=lambda inputs: outcome.population)
-        .assign(intervention=lambda inputs: outcome.intervention)
-        .assign(comparator=lambda inputs: outcome.comparator)
-        .assign(outcome=lambda inputs: outcome.outcome)
+        .assign(population=lambda inputs: population_text)
+        .assign(intervention=lambda inputs: intervention_text)
+        .assign(comparator=lambda inputs: comparator_text)
+        .assign(outcome=lambda inputs: outcome_text)
         .assign(assessment_factor=lambda inputs: 'risk of bias (study limitations)')
         .assign(study_num=lambda inputs: len(paper_list))
         .assign(
@@ -474,6 +491,10 @@ def extract_data_for_GRADE(
         'assumed',
         'corresponding',
     ], f"data_type must be one of ['participants number of intervention', 'participants number of comparator', 'assumed', 'corresponding'], but got {data_type}"
+    population_text = _component_text(outcome.population)
+    intervention_text = _component_text(outcome.intervention)
+    comparator_text = _component_text(outcome.comparator)
+    outcome_text = _component_text(outcome.outcome)
 
     # create rag chains
     # create prompt template
@@ -499,12 +520,12 @@ def extract_data_for_GRADE(
     )
     if data_type == 'participants number of intervention':
         data_type_simple_question = PARTICIPANTS_NUMBER_OF_INTERVENTION_QUESTION.format(
-            intervention=outcome.intervention, outcome=outcome.outcome
+            intervention=intervention_text, outcome=outcome_text
         )
         component = 'intervention'
     elif data_type == 'participants number of comparator':
         data_type_simple_question = PARTICIPANTS_NUMBER_OF_COMPARATOR_QUESTION.format(
-            comparator=outcome.comparator, outcome=outcome.outcome
+            comparator=comparator_text, outcome=outcome_text
         )
         component = 'comparator'
     elif data_type == 'assumed':
@@ -552,7 +573,7 @@ def extract_data_for_GRADE(
             papers=lambda inputs: combine_papers_for_data_extraction(
                 inputs['paper_results_list'],
                 component=component,
-                outcome=outcome.outcome,
+                outcome=outcome_text,
             )
         )
         .assign(disease=lambda inputs: disease)
@@ -565,10 +586,10 @@ def extract_data_for_GRADE(
             )
         )
         # .assign(clinical_question=lambda inputs: outcome.clinical_question)
-        .assign(population=lambda inputs: outcome.population)
-        .assign(intervention=lambda inputs: outcome.intervention)
-        .assign(comparator=lambda inputs: outcome.comparator)
-        .assign(outcome=lambda inputs: outcome.outcome)
+        .assign(population=lambda inputs: population_text)
+        .assign(intervention=lambda inputs: intervention_text)
+        .assign(comparator=lambda inputs: comparator_text)
+        .assign(outcome=lambda inputs: outcome_text)
         .assign(data_type=lambda inputs: data_type)
         .assign(study_num=lambda inputs: len(paper_list))
         .assign(
@@ -612,14 +633,17 @@ def extract_data_for_paper(
     logging.debug(f"Extract data for outcome: {outcome.outcome}")
 
     logging.debug(f"Data type of outcome: {data_type}")
+    intervention_text = _component_text(outcome.intervention)
+    comparator_text = _component_text(outcome.comparator)
+    outcome_text = _component_text(outcome.outcome)
 
     if data_type == 'Dichotomous Data' or data_type == 'Continuous Data':
         from utils.Evidence_Assessment.prompt import get_cell_name_question_map
 
         cell_name_question_map = get_cell_name_question_map(
-            intervention=outcome.intervention,
-            comparator=outcome.comparator,
-            outcome=outcome.outcome,
+            intervention=intervention_text,
+            comparator=comparator_text,
+            outcome=outcome_text,
             mode=data_type,  #! 暂时这么做
         )
         cell_data_extraction_chain = RunnableLambda(
@@ -635,7 +659,9 @@ def extract_data_for_paper(
                 )
             }
         )
-        data_list = cell_data_extraction_chain.batch(cell_name_question_map)
+        data_list = cell_data_extraction_chain.batch(
+            cell_name_question_map, config={"max_concurrency": 1}
+        )
         for data in data_list:
             data_dict.update(data)
 
@@ -643,9 +669,9 @@ def extract_data_for_paper(
         from utils.Evidence_Assessment.prompt import get_cell_name_question_map
 
         cell_name_question_map = get_cell_name_question_map(
-            intervention=outcome.intervention,
-            comparator=outcome.comparator,
-            outcome=outcome.outcome,
+            intervention=intervention_text,
+            comparator=comparator_text,
+            outcome=outcome_text,
             mode='Dichotomous Data',  #! 暂时这么做
         )
         cell_data_extraction_chain = RunnableLambda(
@@ -660,7 +686,9 @@ def extract_data_for_paper(
                 )
             }
         )
-        data_list = cell_data_extraction_chain.batch(cell_name_question_map)
+        data_list = cell_data_extraction_chain.batch(
+            cell_name_question_map, config={"max_concurrency": 1}
+        )
         for data in data_list:
             data_dict.update(data)
     elif data_type == 'Ordinal Data':
@@ -714,10 +742,10 @@ def choose_data_type_of_outcome(outcome: Outcome, model, disease: str) -> str:
         dict(
             # title=paper.title,
             # abstract=paper.abstract,
-            population=outcome.population,
-            intervention=outcome.intervention,
-            comparator=outcome.comparator,
-            outcome=outcome.outcome,
+            population=_component_text(outcome.population),
+            intervention=_component_text(outcome.intervention),
+            comparator=_component_text(outcome.comparator),
+            outcome=_component_text(outcome.outcome),
             disease=disease,
         )
     )
@@ -764,6 +792,10 @@ def extract_cell_data(
     annotation_text = (
         'Annotation: ' + annotation.get('data') if annotation.get('data') else ''
     )
+    population_text = _component_text(outcome.population)
+    intervention_text = _component_text(outcome.intervention)
+    comparator_text = _component_text(outcome.comparator)
+    outcome_text = _component_text(outcome.outcome)
 
     output_parser = LineListOutputParser()
     cell_data_query_generation_chain = (
@@ -772,31 +804,31 @@ def extract_cell_data(
                 'question': RunnablePassthrough(),
             }
         )
-        .assign(abstract=lambda x: 'Abstract: ' + paper.abstract)
+        .assign(abstract=lambda x: 'Abstract: ' + (paper.abstract or ''))
         .assign(
             population=lambda x: (
-                ('Population: ' + outcome.population)
+                ('Population: ' + population_text)
                 if 'population' not in disable_component_list
                 else ''
             )
         )
         .assign(
             intervention=lambda x: (
-                ('Intervention: ' + outcome.intervention)
+                ('Intervention: ' + intervention_text)
                 if 'intervention' not in disable_component_list
                 else ''
             )
         )
         .assign(
             comparator=lambda x: (
-                ('Comparator: ' + outcome.comparator)
+                ('Comparator: ' + comparator_text)
                 if 'comparator' not in disable_component_list
                 else ''
             )
         )
         .assign(
             outcome=lambda x: (
-                ('Outcome: ' + outcome.outcome)
+                ('Outcome: ' + outcome_text)
                 if 'outcome' not in disable_component_list
                 else ''
             )
@@ -819,19 +851,19 @@ def extract_cell_data(
     if len(disable_component_list) < 4:
         final_question += "("
         if 'population' not in disable_component_list:
-            final_question += 'Population: ' + outcome.population + '; '
+            final_question += 'Population: ' + population_text + '; '
         if 'intervention' not in disable_component_list:
-            final_question += 'Intervention: ' + outcome.intervention + '; '
+            final_question += 'Intervention: ' + intervention_text + '; '
         if 'comparator' not in disable_component_list:
-            final_question += 'Comparator: ' + outcome.comparator + '; '
+            final_question += 'Comparator: ' + comparator_text + '; '
         if 'outcome' not in disable_component_list:
-            final_question += 'Outcome: ' + outcome.outcome + '; '
+            final_question += 'Outcome: ' + outcome_text + '; '
         final_question = final_question[:-2] + ')'
 
     if annotation_text:
         final_question += '\n(' + annotation_text + ')'
 
-    logging.debug(f"Outcome uid {outcome.outcome}. final question: {final_question}")
+    logging.debug(f"Outcome uid {outcome_text}. final question: {final_question}")
 
     # create rag chains for single question
     single_question_rag_chain = (
@@ -884,8 +916,6 @@ def extract_cell_data(
 
         # return original_text_content
 
-    cross_validation_chain = RunnableLambda(cross_validation)
-
     # final_data_extraction_chain = (
     #     RunnableParallel({'original_text_content': RunnablePassthrough()})
     #     .assign(context=lambda x: '* ' + '\n* '.join(x['original_text_content']))
@@ -896,6 +926,8 @@ def extract_cell_data(
     #     | StrOutputParser()
     #     | RunnableLambda(lambda x: match_data_from_text(x))
     # ).with_retry(stop_after_attempt=2)
+
+    cross_validation_chain = RunnableLambda(cross_validation)
 
     cell_data_extraction_chain = (
         cell_data_query_generation_chain
