@@ -44,8 +44,6 @@ OUTPUT_PATH = OUTPUT_DIR / "pico_refine_questions.json"
 
 DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_BASE_URL = "https://api.deepseek.com"
-DEFAULT_API_KEY = "sk-ddcdfa39c6b349d9a02367a6d10fe52e"
-
 SYSTEM_PROMPT = """You are a clinical evidence and PICO dataset generation expert.
 
 Your job is to modify exactly one specified PICO element and generate a new English clinical question.
@@ -100,7 +98,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output pico_refine_questions.json path.")
     parser.add_argument("--model", default=os.getenv("DEEPSEEK_MODEL", DEFAULT_MODEL))
     parser.add_argument("--base-url", default=os.getenv("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL))
-    parser.add_argument("--api-key", default=os.getenv("DEEPSEEK_API_KEY", DEFAULT_API_KEY))
+    parser.add_argument("--api-key", default=os.getenv("DEEPSEEK_API_KEY"))
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--seed", type=int, default=None, help="Random seed for choosing P/I/C targets.")
     parser.add_argument("--retry", type=int, default=2, help="Retries per question after the first attempt.")
