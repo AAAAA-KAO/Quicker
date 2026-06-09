@@ -1,8 +1,8 @@
 """Run hybrid dense+sparse retrieval for clinical QA.
 
 功能：
-    接收一个临床问题字符串及其 PICO 组件，将二者拼接成完整检索文本，
-    并联执行两路检索：
+    接收一个临床问题字符串及其 PICO 组件（或包含多个问题的 JSON 文件），
+    将问题与 PICO 拼接成完整检索文本，并联执行两路检索：
         1. Qdrant 稠密向量检索，默认读取
            data/qdrant_storage/collections/clinical_qa_dense，返回前 5 个结果。
         2. BM25 稀疏检索，默认读取 results/clinical_qa_bm25.pkl，返回前 5 个结果。
@@ -10,9 +10,18 @@
     dense_weight * dense_score + sparse_weight * sparse_score 融合排序，
     默认权重为 0.6 和 0.4，返回前 5 个混合检索结果。
 
+    支持两种模式：
+        单问题模式：通过 --question + --pico-json/--pico-file 指定单个临床问题。
+        批量模式：通过 --questions-file 指定包含多个问题的 JSON 文件，
+            逐个检索并增量保存结果；即使 question_id 重复也不会跳过。
+
 输入：
-    --question 输入临床问题字符串。
-    --pico-json 或 --pico-file 输入 PICO。PICO 结构遵循
+    --question 或 --questions-file（二者必选其一）：
+        --question -q: 输入临床问题字符串。
+        --questions-file: 包含多个问题的 JSON 文件路径，每条记录包含
+            question_id、question 和 pico 字段。
+            示例文件：data/evaluate/retrieve/original_questions.json
+    --pico-json 或 --pico-file 输入 PICO（仅单问题模式）。PICO 结构遵循
     data/mimic-cpg/template.json 中 "pico" 字段：
         P: 人群，字符串。
         I: 干预，字符串。
@@ -20,22 +29,29 @@
         O: 结局，字典；key 为 C 中的元素。
 
 输出：
-    终端打印 Qdrant dense、BM25 sparse、hybrid 三种方法的前 5 个结果，
+    终端打印每个问题的 Qdrant dense、BM25 sparse、hybrid 三种方法的前 5 个结果，
     每条结果包含 question、answer、disease 字段。运行过程通过项目日志工具
-    记录到日志文件；不写入检索结果文件。
+    记录到日志文件；结果增量保存到 --output-file（默认 results/retrieve/results.json）。
 
-在项目根目录运行：
+在项目根目录运行（单问题模式）：
     conda run -n quicker python src/hybrid_retrieval.py \\
         --qdrant-host localhost \\
         --qdrant-port 6333 \\
         --question "Should pediatric patients with suspected appendicitis be diagnosed by clinical scores alone?" \\
         --pico-json '{"P":"pediatric patients with suspected appendicitis","I":"clinical scores alone","C":["imaging or laboratory-assisted diagnosis"],"O":{"imaging or laboratory-assisted diagnosis":["diagnostic accuracy","missed appendicitis"]}}'
 
+批量模式：
+    conda run -n quicker python src/hybrid_retrieval.py \\
+        --qdrant-host localhost \\
+        --qdrant-port 6333 \\
+        --questions-file data/evaluate/retrieve/original_questions.json
+
 命令行参数：
-    --question, -q: 待检索的临床问题，必填。
-    --pico-json: PICO JSON 字符串；可直接传 PICO，也可传包含 "pico" 字段的字典。
+    --question, -q: 待检索的临床问题（与 --questions-file 互斥）。
+    --questions-file: 包含多个问题对象的 JSON 文件路径（与 --question 互斥）。
+    --pico-json: PICO JSON 字符串；可直接传 PICO，也可传包含 "pico" 字段的字典（仅单问题模式）。
     --pico-file: PICO JSON 文件路径；可为 PICO 字典、含 "pico" 字段的字典，
-        或 template.json 这类列表文件。
+        或 template.json 这类列表文件（仅单问题模式）。
     --log-file: 日志文件路径；不传则写入 logs/hybrid_retrieval.log。
     --bm25-index-file: BM25 pickle 索引路径，默认 results/clinical_qa_bm25.pkl。
     --qdrant-path: Qdrant 本地存储路径；默认使用用户给定的 collection 路径
@@ -50,9 +66,10 @@
     --device: sentence-transformers 运行设备，默认 cpu。
     --normalize-embeddings / --no-normalize-embeddings: 是否归一化查询向量，
         默认开启，适配 Cosine 检索。
-    --top-k: 每种检索方式返回并打印的条数，默认 5。
+    --top-k: 每种检索方式返回并打印的条数，默认 10。
     --dense-weight: 混合检索中的稠密分数权重，默认 0.6。
     --sparse-weight: 混合检索中的 BM25 分数权重，默认 0.4。
+    --output-file: 检索结果输出 JSON 文件路径，默认 results/retrieve/results.json。
 """
 
 from __future__ import annotations
@@ -62,7 +79,8 @@ import json
 import pickle
 import re
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -71,6 +89,7 @@ from utils.logging import log_step, setup_logging
 
 DEFAULT_QDRANT_COLLECTION_PATH = Path("data/qdrant_storage/collections/clinical_qa_dense")
 DEFAULT_BM25_INDEX_FILE = Path("results/clinical_qa_bm25.pkl")
+DEFAULT_OUTPUT_FILE = Path("results/retrieve/results.json")
 DEFAULT_COLLECTION_NAME = "clinical_qa_dense"
 DEFAULT_MODEL_NAME = "BAAI/bge-m3"
 EMPTY_PICO: dict[str, Any] = {"P": "", "I": "", "C": [], "O": {}}
@@ -98,7 +117,7 @@ class RetrievalConfig:
     model_name: str = DEFAULT_MODEL_NAME
     device: str = "cpu"
     normalize_embeddings: bool = True
-    top_k: int = 5
+    top_k: int = 10
     dense_weight: float = 0.6
     sparse_weight: float = 0.4
 
@@ -107,11 +126,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run dense Qdrant, sparse BM25, and weighted hybrid retrieval."
     )
-    parser.add_argument("--question", "-q", required=True, help="Clinical question to retrieve.")
+
+    question_group = parser.add_mutually_exclusive_group(required=True)
+    question_group.add_argument("--question", "-q", default=None, help="Clinical question to retrieve.")
+    question_group.add_argument(
+        "--questions-file",
+        type=Path,
+        default=None,
+        help="Path to a JSON file containing an array of question objects. "
+        "Each object must have 'question_id', 'question', and optionally 'pico' fields. "
+        "Example: data/evaluate/retrieve/original_questions.json",
+    )
 
     pico_group = parser.add_mutually_exclusive_group()
-    pico_group.add_argument("--pico-json", default="", help="PICO JSON string.")
-    pico_group.add_argument("--pico-file", type=Path, default=None, help="Path to a PICO JSON file.")
+    pico_group.add_argument("--pico-json", default="", help="PICO JSON string (single question mode only).")
+    pico_group.add_argument("--pico-file", type=Path, default=None, help="Path to a PICO JSON file (single question mode only).")
 
     parser.add_argument("--log-file", type=Path, default=None)
     parser.add_argument("--bm25-index-file", type=Path, default=DEFAULT_BM25_INDEX_FILE)
@@ -126,6 +155,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dense-weight", type=float, default=0.6)
     parser.add_argument("--sparse-weight", type=float, default=0.4)
+    parser.add_argument("--output-file", type=Path, default=DEFAULT_OUTPUT_FILE)
     return parser.parse_args()
 
 
@@ -463,6 +493,21 @@ def print_results(title: str, results: Sequence[SearchResult]) -> None:
         print(f"disease: {record.get('disease', '')}")
 
 
+def append_results_to_json(file_path: Path, entry: dict[str, Any]) -> None:
+    """Append one run result dict to a JSON file storing a list of results."""
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    if file_path.exists():
+        with file_path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if not isinstance(data, list):
+            data = []
+    else:
+        data = []
+    data.append(entry)
+    with file_path.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, ensure_ascii=False, indent=2)
+
+
 def build_config(args: argparse.Namespace) -> RetrievalConfig:
     return RetrievalConfig(
         bm25_index_file=args.bm25_index_file,
@@ -480,17 +525,83 @@ def build_config(args: argparse.Namespace) -> RetrievalConfig:
     )
 
 
+def load_questions_from_file(path: Path) -> list[dict[str, Any]]:
+    """Load a JSON array of question objects from a file.
+
+    Each object must have at least ``question``, and optionally ``question_id``
+    and ``pico``.  Returns the list of objects unchanged — callers normalise
+    PICO fields themselves.
+    """
+    with path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    if not isinstance(data, list):
+        raise ValueError(f"Questions file must contain a JSON array, got {type(data).__name__}: {path}")
+
+    validated: list[dict[str, Any]] = []
+    for idx, entry in enumerate(data):
+        if not isinstance(entry, dict):
+            raise ValueError(f"Each item in questions file must be an object, item {idx} is {type(entry).__name__}")
+        if "question" not in entry or not str(entry.get("question", "")).strip():
+            raise ValueError(f"Item {idx} in questions file is missing a non-empty 'question' field")
+        validated.append(entry)
+
+    return validated
+
+
+def run_single_question(
+    question: str,
+    pico: dict[str, Any],
+    config: RetrievalConfig,
+    logger: Any,
+    *,
+    question_id: str | None = None,
+) -> dict[str, Any]:
+    """Execute retrieval for one question and return the result entry dict.
+
+    This is the shared core used by both single-question and batch modes.
+    """
+    query_text = build_query_text(question, pico)
+    logger.debug("question=%s", question)
+    logger.debug("pico=%s", json.dumps(pico, ensure_ascii=False, sort_keys=True))
+    logger.debug("query_text=%s", query_text)
+
+    print("\n" + "=" * 72)
+    if question_id:
+        print(f"Question ID: {question_id}")
+    print("Query text:")
+    print(query_text)
+
+    results = hybrid_retrieve(question, pico, config)
+    logger.debug(
+        "result_counts=%s",
+        {method: len(method_results) for method, method_results in results.items()},
+    )
+
+    print_results("Qdrant Dense Top Results", results["dense"])
+    print_results("BM25 Sparse Top Results", results["sparse"])
+    print_results("Hybrid Top Results", results["hybrid"])
+
+    entry: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "question": question,
+        "pico": pico,
+        "query_text": query_text,
+        "dense_results": [asdict(r) for r in results["dense"]],
+        "sparse_results": [asdict(r) for r in results["sparse"]],
+        "hybrid_results": [asdict(r) for r in results["hybrid"]],
+    }
+    if question_id:
+        entry["question_id"] = question_id
+
+    return entry
+
+
 def main() -> None:
     args = parse_args()
     logger = setup_logging("hybrid_retrieval", log_file=args.log_file)
 
-    log_step(logger, "加载并规范化 PICO 输入")
-    pico = load_pico_from_args(args)
-    query_text = build_query_text(args.question, pico)
     config = build_config(args)
-    logger.debug("question=%s", args.question)
-    logger.debug("pico=%s", json.dumps(pico, ensure_ascii=False, sort_keys=True))
-    logger.debug("query_text=%s", query_text)
     logger.debug(
         "retrieval_config=%s",
         {
@@ -509,21 +620,62 @@ def main() -> None:
         },
     )
 
-    print("Query text:")
-    print(query_text)
+    # ------------------------------------------------------------------
+    # Single-question mode
+    # ------------------------------------------------------------------
+    if args.question:
+        log_step(logger, "加载并规范化 PICO 输入")
+        pico = load_pico_from_args(args)
 
-    log_step(logger, "执行混合检索")
-    results = hybrid_retrieve(args.question, pico, config)
-    logger.debug(
-        "result_counts=%s",
-        {method: len(method_results) for method, method_results in results.items()},
+        log_step(logger, "执行混合检索（单问题模式）")
+        entry = run_single_question(args.question, pico, config, logger)
+
+        log_step(logger, f"保存检索结果到 {args.output_file}")
+        append_results_to_json(args.output_file, entry)
+        log_step(logger, "完成混合检索")
+        return
+
+    # ------------------------------------------------------------------
+    # Batch mode (--questions-file)
+    # ------------------------------------------------------------------
+    log_step(logger, f"从文件加载问题列表: {args.questions_file}")
+    questions = load_questions_from_file(args.questions_file)
+    logger.info("共加载 %d 个问题", len(questions))
+
+    total = len(questions)
+    processed = 0
+
+    for idx, item in enumerate(questions, start=1):
+        qid = item.get("question_id", f"batch-{idx}")
+        question_text = str(item.get("question", "")).strip()
+        raw_pico = item.get("pico", {})
+        pico = normalize_pico(raw_pico)
+
+        log_step(logger, f"[{idx}/{total}] 检索问题: {qid}")
+        logger.info("question=%s", question_text[:120])
+
+        try:
+            entry = run_single_question(
+                question_text,
+                pico,
+                config,
+                logger,
+                question_id=qid,
+            )
+        except Exception as exc:
+            logger.error("[%d/%d] 检索失败: %s — %s", idx, total, qid, exc)
+            continue
+
+        log_step(logger, f"[{idx}/{total}] 保存结果: {qid}")
+        append_results_to_json(args.output_file, entry)
+        processed += 1
+
+    logger.info(
+        "批量检索完成: 总计 %d, 已处理 %d",
+        total,
+        processed,
     )
-
-    log_step(logger, "打印检索结果")
-    print_results("Qdrant Dense Top Results", results["dense"])
-    print_results("BM25 Sparse Top Results", results["sparse"])
-    print_results("Hybrid Top Results", results["hybrid"])
-    log_step(logger, "完成混合检索")
+    log_step(logger, "完成批量混合检索")
 
 
 if __name__ == "__main__":
