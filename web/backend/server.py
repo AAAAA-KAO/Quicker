@@ -232,6 +232,93 @@ def has_knowledge_base_entries(disease: str) -> bool:
     return kb_disease.strip().lower() in knowledge_base_diseases()
 
 
+def normalize_question_for_match(question: Any) -> str:
+    return " ".join(str(question or "").strip().lower().split())
+
+
+def find_exact_knowledge_base_entry(disease: str, question: str) -> dict[str, Any] | None:
+    kb_disease = disease_config(disease).get("kb_disease") or ""
+    target = normalize_question_for_match(question)
+    if not kb_disease or not target:
+        return None
+
+    records = read_json(KNOWLEDGE_BASE_PATH, [])
+    if not isinstance(records, list):
+        return None
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_disease = str(record.get("disease", "")).strip().lower()
+        record_question = normalize_question_for_match(record.get("question", ""))
+        if record_disease == kb_disease.strip().lower() and record_question == target:
+            return record
+    return None
+
+
+def answer_text(value: Any) -> str:
+    if isinstance(value, list):
+        return "\n".join(str(item) for item in value)
+    return str(value or "")
+
+
+def exact_knowledge_base_evidence(question: str, disease: str, record: dict[str, Any]) -> dict[str, Any]:
+    kb_disease = disease_config(disease).get("kb_disease") or ""
+    answer = answer_text(record.get("answer", ""))
+    candidate = {
+        "rank": 1,
+        "index": None,
+        "retrieval_score": None,
+        "question_id": record.get("question_id", ""),
+        "question": record.get("question", ""),
+        "answer": record.get("answer", ""),
+        "disease": record.get("disease", ""),
+        "topic": record.get("topic", ""),
+        "pico": record.get("pico", {}),
+        "source": record.get("source", {}),
+    }
+    reason = "知识库中存在同疾病的完全匹配问题，直接使用该候选问答。"
+    route_result = {
+        "decision": "yes",
+        "判断": "yes",
+        "reason": "Exact same-disease question found in the knowledge base.",
+        "理由": reason,
+        "dimension_reasons": {
+            "retrieval_match_strength": "Exact question match within the selected disease.",
+            "candidate_answer_consistency": "A single exact-match candidate is used.",
+            "pico_coverage": "The stored QA pair is used directly for this question.",
+        },
+        "维度理由": {
+            "检索匹配强度": reason,
+            "候选答案一致性": "使用单条完全匹配候选。",
+            "PICO覆盖度": "直接沿用知识库中该问题的 PICO 和答案。",
+        },
+        "dimension_ratings": {
+            "retrieval_match_strength": "strong",
+            "candidate_answer_consistency": "consistent",
+            "pico_coverage": "covered",
+        },
+        "维度评级": {
+            "检索匹配强度": "强",
+            "候选答案一致性": "一致",
+            "PICO覆盖度": "覆盖",
+        },
+        "supporting_candidate_ranks": [1],
+        "依据候选排名": [1],
+        "candidate_based_brief_answer": answer,
+        "基于候选的简短答案": answer,
+    }
+    return {
+        "question": question,
+        "pico": record.get("pico", {}),
+        "retrieval": {"hybrid": [candidate]},
+        "route": route_result,
+        "answer": answer,
+        "kb_disease": kb_disease,
+        "exact_match": True,
+    }
+
+
 def create_task(disease: str, question: str) -> dict[str, Any]:
     meta = disease_config(disease)
     task_id = uuid.uuid4().hex[:12]
@@ -753,11 +840,22 @@ def start_task_thread(task: dict[str, Any], start_stage: str) -> None:
     thread.start()
 
 
+def route_decision(route_result: dict[str, Any]) -> str:
+    return str(route_result.get("decision", route_result.get("判断", ""))).strip().lower()
+
+
 def answer_from_candidates(route_result: dict[str, Any], retrieval_summary: dict[str, Any]) -> str:
-    answer = route_result.get("基于候选的简短答案", "")
+    answer = route_result.get(
+        "candidate_based_brief_answer",
+        route_result.get("基于候选的简短答案", ""),
+    )
     if answer:
         return answer
-    for rank in route_result.get("依据候选排名", []):
+    ranks = route_result.get(
+        "supporting_candidate_ranks",
+        route_result.get("依据候选排名", []),
+    )
+    for rank in ranks:
         try:
             idx = int(rank) - 1
         except Exception:
@@ -914,8 +1012,18 @@ def handle_ask(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         evidence = skipped_evidenceqa(question, disease, reason)
         return create_reasoning_response(disease, question, evidence, reason)
 
+    exact_entry = find_exact_knowledge_base_entry(disease, question)
+    if exact_entry:
+        evidence = exact_knowledge_base_evidence(question, disease, exact_entry)
+        return 200, {
+            "ok": True,
+            "mode": "knowledge_base",
+            "answer": evidence.get("answer", ""),
+            "evidence": evidence,
+        }
+
     evidence = run_evidenceqa(question, disease)
-    if evidence.get("route", {}).get("判断") == "yes":
+    if route_decision(evidence.get("route", {})) == "yes":
         return 200, {
             "ok": True,
             "mode": "knowledge_base",

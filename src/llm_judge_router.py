@@ -213,27 +213,39 @@ def coerce_to_plain_dict(value: Any) -> dict[str, Any]:
     return dict(value)
 
 
-def select_retrieval_items(payload: Any) -> list[Any]:
-    """Extract retrieval result items from a payload, always preferring hybrid_results.
+def select_retrieval_items(payload: Any, retrieval_method: str = "hybrid") -> list[Any]:
+    """Extract retrieval result items from a payload.
 
-    When ``payload`` is a dict, looks for the ``hybrid`` key first, then falls back
-    to ``results``, ``retrieval_results``, or treats the dict itself as a single
-    record. When ``payload`` is a list, returns it directly.
+    When ``payload`` is a dict, looks for the requested retrieval method key first
+    (for example ``hybrid`` or ``hybrid_results``), then falls back to generic
+    ``results``/``retrieval_results`` payloads, or treats the dict itself as a
+    single record. When ``payload`` is a list, returns it directly.
     """
+    method = (retrieval_method or "hybrid").strip().lower()
+    selected = None
+
     if isinstance(payload, dict):
-        if "hybrid" in payload:
-            selected = payload["hybrid"]
-        elif "results" in payload:
-            selected = payload["results"]
-        elif "retrieval_results" in payload:
-            selected = payload["retrieval_results"]
-        elif "record" in payload or "question" in payload or "answer" in payload:
+        method_keys = [method, f"{method}_results"] if method else []
+        fallback_keys = (
+            ["results", "retrieval_results"]
+            if method and method != "hybrid"
+            else ["hybrid", "hybrid_results", "results", "retrieval_results"]
+        )
+        expected_keys = list(dict.fromkeys(method_keys + fallback_keys))
+        for key in expected_keys:
+            if key in payload:
+                selected = payload[key]
+                break
+
+        if selected is None and ("record" in payload or "question" in payload or "answer" in payload):
             selected = [payload]
-        else:
+
+        if selected is None:
             available = ", ".join(sorted(str(key) for key in payload.keys()))
             raise ValueError(
-                f"Cannot find retrieval list. Expected 'hybrid', 'results', "
-                f"'retrieval_results', or a single record. Available keys: {available}"
+                f"Cannot find retrieval list for method {method!r}. Expected one of "
+                f"{', '.join(repr(key) for key in expected_keys)}, "
+                f"or a single record. Available keys: {available}"
             )
     elif isinstance(payload, list):
         selected = payload
@@ -248,8 +260,9 @@ def select_retrieval_items(payload: Any) -> list[Any]:
 def normalize_retrieval_results(
     payload: Any,
     max_candidates: int = 5,
+    retrieval_method: str = "hybrid",
 ) -> list[CandidateQAPair]:
-    items = select_retrieval_items(payload)
+    items = select_retrieval_items(payload, retrieval_method=retrieval_method)
     candidates: list[CandidateQAPair] = []
 
     for rank, raw_item in enumerate(items[:max_candidates], start=1):
