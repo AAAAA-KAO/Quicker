@@ -28,7 +28,6 @@ RUNTIME_DIR = ROOT_DIR / "web" / "runtime"
 TASKS_DIR = RUNTIME_DIR / "tasks"
 CONFIGS_DIR = RUNTIME_DIR / "configs"
 UPLOADS_DIR = RUNTIME_DIR / "uploads"
-KNOWLEDGE_BASE_PATH = ROOT_DIR / "results" / "mimic_cpg_knowledge_base.json"
 
 SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
@@ -41,6 +40,12 @@ DISEASES = {
     "Rheumatoid Arthritis (RA)": {
         "label": "Rheumatoid Arthritis (RA)",
         "kb_disease": "Rheumatoid Arthritis (RA)",
+        "kb_disease_aliases": [
+            "Rheumatoid Arthritis",
+            "RA",
+            "2021 ACR RA",
+            "2021ACR RA",
+        ],
         "dataset_name": "2021ACR RA",
         "dataset_path": "data/2021ACR RA",
         "config_template": "config/config.json",
@@ -49,6 +54,10 @@ DISEASES = {
     "Appendicitis": {
         "label": "Appendicitis",
         "kb_disease": "acute appendicitis",
+        "kb_disease_aliases": [
+            "appendicitis",
+            "acute appendicitis",
+        ],
         "dataset_name": "Appendicitis",
         "dataset_path": "data/Appendicitis",
         "config_template": "config/config.json",
@@ -208,115 +217,71 @@ def public_task(task: dict[str, Any]) -> dict[str, Any]:
     return task_snapshot(task, compact=True)
 
 
-def disease_config(disease: str) -> dict[str, str]:
+def disease_config(disease: str) -> dict[str, Any]:
     if disease not in DISEASES:
         raise ValueError(f"Unsupported disease: {disease}")
     return DISEASES[disease]
 
 
-def knowledge_base_diseases() -> set[str]:
-    records = read_json(KNOWLEDGE_BASE_PATH, [])
-    if not isinstance(records, list):
-        return set()
-    return {
-        str(record.get("disease", "")).strip().lower()
-        for record in records
-        if str(record.get("disease", "")).strip()
-    }
+def normalize_disease_for_match(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    text = text.replace("_", " ").replace("-", " ")
+    return " ".join(text.split())
 
 
-def has_knowledge_base_entries(disease: str) -> bool:
-    kb_disease = disease_config(disease).get("kb_disease") or ""
-    if not kb_disease:
-        return False
-    return kb_disease.strip().lower() in knowledge_base_diseases()
-
-
-def normalize_question_for_match(question: Any) -> str:
-    return " ".join(str(question or "").strip().lower().split())
-
-
-def find_exact_knowledge_base_entry(disease: str, question: str) -> dict[str, Any] | None:
-    kb_disease = disease_config(disease).get("kb_disease") or ""
-    target = normalize_question_for_match(question)
-    if not kb_disease or not target:
-        return None
-
-    records = read_json(KNOWLEDGE_BASE_PATH, [])
-    if not isinstance(records, list):
-        return None
-
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-        record_disease = str(record.get("disease", "")).strip().lower()
-        record_question = normalize_question_for_match(record.get("question", ""))
-        if record_disease == kb_disease.strip().lower() and record_question == target:
-            return record
-    return None
-
-
-def answer_text(value: Any) -> str:
-    if isinstance(value, list):
-        return "\n".join(str(item) for item in value)
-    return str(value or "")
-
-
-def exact_knowledge_base_evidence(question: str, disease: str, record: dict[str, Any]) -> dict[str, Any]:
-    kb_disease = disease_config(disease).get("kb_disease") or ""
-    answer = answer_text(record.get("answer", ""))
-    candidate = {
-        "rank": 1,
-        "index": None,
-        "retrieval_score": None,
-        "question_id": record.get("question_id", ""),
-        "question": record.get("question", ""),
-        "answer": record.get("answer", ""),
-        "disease": record.get("disease", ""),
-        "topic": record.get("topic", ""),
-        "pico": record.get("pico", {}),
-        "source": record.get("source", {}),
-    }
-    reason = "知识库中存在同疾病的完全匹配问题，直接使用该候选问答。"
-    route_result = {
-        "decision": "yes",
-        "判断": "yes",
-        "reason": "Exact same-disease question found in the knowledge base.",
-        "理由": reason,
-        "dimension_reasons": {
-            "retrieval_match_strength": "Exact question match within the selected disease.",
-            "candidate_answer_consistency": "A single exact-match candidate is used.",
-            "pico_coverage": "The stored QA pair is used directly for this question.",
-        },
-        "维度理由": {
-            "检索匹配强度": reason,
-            "候选答案一致性": "使用单条完全匹配候选。",
-            "PICO覆盖度": "直接沿用知识库中该问题的 PICO 和答案。",
-        },
-        "dimension_ratings": {
-            "retrieval_match_strength": "strong",
-            "candidate_answer_consistency": "consistent",
-            "pico_coverage": "covered",
-        },
-        "维度评级": {
-            "检索匹配强度": "强",
-            "候选答案一致性": "一致",
-            "PICO覆盖度": "覆盖",
-        },
-        "supporting_candidate_ranks": [1],
-        "依据候选排名": [1],
-        "candidate_based_brief_answer": answer,
-        "基于候选的简短答案": answer,
+def disease_aliases(disease: str) -> set[str]:
+    meta = disease_config(disease)
+    raw_aliases = {
+        meta.get("label", ""),
+        meta.get("kb_disease", ""),
+        meta.get("dataset_name", ""),
+        meta.get("disease", ""),
+        *meta.get("kb_disease_aliases", []),
     }
     return {
-        "question": question,
-        "pico": record.get("pico", {}),
-        "retrieval": {"hybrid": [candidate]},
-        "route": route_result,
-        "answer": answer,
-        "kb_disease": kb_disease,
-        "exact_match": True,
+        alias
+        for alias in (normalize_disease_for_match(value) for value in raw_aliases)
+        if alias
     }
+
+
+def record_disease_values(record: dict[str, Any]) -> set[str]:
+    values: set[str] = set()
+    for key in ("disease", "Disease", "dataset", "Dataset", "dataset_name", "Dataset_Name"):
+        value = normalize_disease_for_match(record.get(key, ""))
+        if value:
+            values.add(value)
+    source = record.get("source")
+    if isinstance(source, dict):
+        for key in ("disease", "dataset", "source_file"):
+            value = normalize_disease_for_match(source.get(key, ""))
+            if value:
+                values.add(value.removesuffix(".json"))
+    return values
+
+
+def record_matches_disease(record: dict[str, Any], disease: str) -> bool:
+    aliases = disease_aliases(disease)
+    if not aliases:
+        return True
+    return bool(record_disease_values(record) & aliases)
+
+
+def filter_retrieval_results_by_disease(
+    retrieval_results: dict[str, list[Any]],
+    disease: str,
+) -> dict[str, list[Any]]:
+    filtered: dict[str, list[Any]] = {}
+    for method, items in retrieval_results.items():
+        filtered[method] = [
+            item for item in items
+            if record_matches_disease(getattr(item, "record", {}), disease)
+        ]
+    return filtered
+
+
+def retrieval_counts(retrieval_results: dict[str, list[Any]]) -> dict[str, int]:
+    return {method: len(items) for method, items in retrieval_results.items()}
 
 
 def create_task(disease: str, question: str) -> dict[str, Any]:
@@ -845,6 +810,8 @@ def route_decision(route_result: dict[str, Any]) -> str:
 
 
 def answer_from_candidates(route_result: dict[str, Any], retrieval_summary: dict[str, Any]) -> str:
+    if route_decision(route_result) != "yes":
+        return ""
     answer = route_result.get(
         "candidate_based_brief_answer",
         route_result.get("基于候选的简短答案", ""),
@@ -869,33 +836,16 @@ def answer_from_candidates(route_result: dict[str, Any], retrieval_summary: dict
     return ""
 
 
-def skipped_evidenceqa(question: str, disease: str, reason: str) -> dict[str, Any]:
-    kb_disease = disease_config(disease).get("kb_disease") or ""
-    route_result = {
-        "判断": "no",
-        "理由": reason,
-        "维度理由": {
-            "检索匹配强度": reason,
-            "候选答案一致性": "",
-            "PICO覆盖度": "",
-        },
-        "维度评级": {
-            "检索匹配强度": "弱",
-            "候选答案一致性": "不足",
-            "PICO覆盖度": "不足",
-        },
-        "依据候选排名": [],
-        "基于候选的简短答案": "",
-    }
-    return {
-        "question": question,
-        "pico": None,
-        "retrieval": {},
-        "route": route_result,
-        "answer": "",
-        "skipped": True,
-        "kb_disease": kb_disease,
-    }
+def suppress_non_answerable_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
+    if route_decision(evidence.get("route", {})) == "yes":
+        return evidence
+    sanitized = copy.deepcopy(evidence)
+    sanitized["answer"] = ""
+    route = sanitized.get("route")
+    if isinstance(route, dict):
+        route["candidate_based_brief_answer"] = ""
+        route["基于候选的简短答案"] = ""
+    return sanitized
 
 
 def create_reasoning_response(
@@ -904,6 +854,7 @@ def create_reasoning_response(
     evidence: dict[str, Any],
     event_message: str,
 ) -> tuple[int, dict[str, Any]]:
+    evidence = suppress_non_answerable_evidence(evidence)
     task = create_task(disease, question)
     task["artifacts"]["evidenceqa"] = evidence
     append_event(task, event_message)
@@ -938,16 +889,11 @@ def run_evidenceqa(question: str, disease: str) -> dict[str, Any]:
     )
     retriever = ep.ClinicalQAHybridRetriever(config)
     retrieval_results = retriever.retrieve(question, pico)
+    unfiltered_counts = retrieval_counts(retrieval_results)
 
     kb_disease = disease_config(disease).get("kb_disease") or ""
-    if kb_disease:
-        filtered = {}
-        for method, items in retrieval_results.items():
-            filtered[method] = [
-                item for item in items
-                if str(item.record.get("disease", "")).lower() == kb_disease.lower()
-            ]
-        retrieval_results = filtered
+    retrieval_results = filter_retrieval_results_by_disease(retrieval_results, disease)
+    filtered_counts = retrieval_counts(retrieval_results)
 
     serialized = ep.serialize_retrieval_results(retrieval_results)
     candidates = ep.normalize_retrieval_results(
@@ -955,36 +901,18 @@ def run_evidenceqa(question: str, disease: str) -> dict[str, Any]:
         retrieval_method="hybrid",
         max_candidates=5,
     )
-    if candidates:
-        route_result = ep.judge_route_batch(
-            llm=llm,
-            cases=[
-                {
-                    "question": question,
-                    "pico": pico,
-                    "candidates": candidates,
-                    "max_answer_chars": 4000,
-                }
-            ],
-            max_concurrency=2,
-        )[0]
-    else:
-        route_result = {
-            "判断": "no",
-            "理由": "No candidate QA pairs matched the selected disease.",
-            "维度理由": {
-                "检索匹配强度": "No candidate after disease filtering.",
-                "候选答案一致性": "",
-                "PICO覆盖度": "",
-            },
-            "维度评级": {
-                "检索匹配强度": "弱",
-                "候选答案一致性": "不足",
-                "PICO覆盖度": "不足",
-            },
-            "依据候选排名": [],
-            "基于候选的简短答案": "",
-        }
+    route_result = ep.judge_route_batch(
+        llm=llm,
+        cases=[
+            {
+                "question": question,
+                "pico": pico,
+                "candidates": candidates,
+                "max_answer_chars": 4000,
+            }
+        ],
+        max_concurrency=2,
+    )[0]
 
     retrieval_summary = ep.summarize_retrieval_results(retrieval_results, max_answer_chars=1200)
     return {
@@ -993,6 +921,12 @@ def run_evidenceqa(question: str, disease: str) -> dict[str, Any]:
         "retrieval": retrieval_summary,
         "route": route_result,
         "answer": answer_from_candidates(route_result, retrieval_summary),
+        "kb_disease": kb_disease,
+        "disease_aliases": sorted(disease_aliases(disease)),
+        "retrieval_counts": {
+            "before_disease_filter": unfiltered_counts,
+            "after_disease_filter": filtered_counts,
+        },
     }
 
 
@@ -1005,22 +939,6 @@ def handle_ask(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         disease_config(disease)
     except ValueError as exc:
         return api_error(str(exc))
-
-    if not has_knowledge_base_entries(disease):
-        kb_disease = disease_config(disease).get("kb_disease") or disease
-        reason = f"知识库中没有 {kb_disease} 的候选问答，跳过知识库路由并创建推理任务。"
-        evidence = skipped_evidenceqa(question, disease, reason)
-        return create_reasoning_response(disease, question, evidence, reason)
-
-    exact_entry = find_exact_knowledge_base_entry(disease, question)
-    if exact_entry:
-        evidence = exact_knowledge_base_evidence(question, disease, exact_entry)
-        return 200, {
-            "ok": True,
-            "mode": "knowledge_base",
-            "answer": evidence.get("answer", ""),
-            "evidence": evidence,
-        }
 
     evidence = run_evidenceqa(question, disease)
     if route_decision(evidence.get("route", {})) == "yes":

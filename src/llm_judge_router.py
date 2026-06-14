@@ -484,6 +484,15 @@ def normalize_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
         payload.get("dimension_ratings", payload.get("dimension_judgments", payload.get("维度评级", {})))
     )
 
+    brief_answer = stringify_reason(
+        payload.get(
+            "candidate_based_brief_answer",
+            payload.get("answer_basis", payload.get("基于候选的简短答案", "")),
+        )
+    )
+    if decision_text != "yes":
+        brief_answer = ""
+
     return {
         "decision": decision_text,
         "reason": reason,
@@ -495,12 +504,7 @@ def normalize_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 payload.get("best_candidate_ranks", payload.get("依据候选排名", [])),
             )
         ),
-        "candidate_based_brief_answer": stringify_reason(
-            payload.get(
-                "candidate_based_brief_answer",
-                payload.get("answer_basis", payload.get("基于候选的简短答案", "")),
-            )
-        ),
+        "candidate_based_brief_answer": brief_answer,
     }
 
 
